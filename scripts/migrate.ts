@@ -4,8 +4,13 @@ import { readFile } from 'node:fs/promises';
 nextEnv.loadEnvConfig(process.cwd());
 const url = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
 if (!url) {
-  if (process.env.VERCEL) throw new Error('Connect Neon to this Vercel project before building.');
-  console.log('No DATABASE_URL: skipping migrations for local build.');
+  // Hackathon: scanner demos (hate/extremism + impersonation) do not need Neon.
+  // Auth/account features that need Postgres stay inactive until Neon is connected.
+  console.warn(
+    process.env.VERCEL
+      ? 'No DATABASE_URL on Vercel: skipping migrations. Connect Neon to enable auth/account storage.'
+      : 'No DATABASE_URL: skipping migrations for local build.'
+  );
 } else {
   const sql = neon(url);
   const migration = await readFile(new URL('../migrations/001_argon_guard.sql', import.meta.url), 'utf8');

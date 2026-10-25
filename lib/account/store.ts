@@ -4,9 +4,13 @@ import { databaseReady, postgresRecords } from '@/lib/database';
 // Shared across route modules in local development. Production uses Neon, with Redis retained for existing installations.
 const memory = (globalThis as any).__accountStore ??= new Map<string, { value: unknown; expires: number }>();
 export function durableStorageReady() { return databaseReady() || Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN); }
+let warnedMissingAccountStorage = false;
 function useRedis() {
   if (durableStorageReady()) return true;
-  if (process.env.NODE_ENV === 'production') throw new Error('Account storage is not configured');
+  if (process.env.NODE_ENV === 'production' && !warnedMissingAccountStorage) {
+    warnedMissingAccountStorage = true;
+    console.warn('[accountStore] No Neon/KV configured; using in-memory fallback (hackathon). Connect Neon for durable auth/account storage.');
+  }
   return false;
 }
 export const accountStore = {

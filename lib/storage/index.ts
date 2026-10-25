@@ -64,10 +64,9 @@ async function initKV() {
       kvStore = kv;
       console.log('[Storage] Using Upstash Redis');
     } else {
-      if (process.env.NODE_ENV === 'production') throw new Error('Persistent storage is required in production');
+      console.warn('[Storage] No KV configured; using in-memory fallback (hackathon). Connect Neon/KV for durable scan history.');
     }
   } catch (error) {
-    if (process.env.NODE_ENV === 'production') throw error;
     console.warn('[Storage] Failed to initialize KV, using in-memory storage:', error);
   }
 }
