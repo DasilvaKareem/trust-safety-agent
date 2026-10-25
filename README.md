@@ -1,6 +1,6 @@
 # Argon Guard
 
-A Vercel integration that automatically scans every deployment for phishing and abuse using rules-based detection plus Google Gemini vision analysis. The durable deep scan, the daily re-scan and the scanning agent run on [eve](https://www.npmjs.com/package/eve), Vercel's filesystem-first framework for durable backend AI agents (see [What uses eve](#what-uses-eve)).
+A Vercel integration that automatically scans every deployment for phishing and abuse using rules-based detection plus Google Gemini vision analysis. The durable deep scan and the scanning agent run on [eve](https://www.npmjs.com/package/eve), Vercel's filesystem-first framework for durable backend AI agents (see [What uses eve](#what-uses-eve)).
 
 **Built for:** CV Gemini 4 Argon Hackathon + Vercel Trust & Safety interview design showcase
 
@@ -13,7 +13,7 @@ graph TB
     E -->|step| C[Rules Scorer]
     C --> E
     E -->|Update Result| D[(Storage KV/Memory)]
-    S[eve schedule: daily re-scan] --> E
+    S[Manual re-scan: POST /api/rescan] --> E
     E -->|Fetch HTML| F[Deployment URL]
     E -->|Vision Analysis| G[Google Gemini 4]
     G -->|Classification Result| E
@@ -30,6 +30,29 @@ graph TB
     style G fill:#4285f4,stroke:#333
     style C fill:#ffa,stroke:#333
     style H fill:#aff,stroke:#333
+```
+
+## Policies
+
+The scanner evaluates every deployment against four abuse categories plus a benign category (`phishing`, `scam`, `hate_harassment`, `violent_extremism`, `benign`) and returns the single most severe applicable category:
+
+- **Phishing (`phishing`):** Brand impersonation and credential, payment-card, SSN, or seed-phrase harvesting on unrelated or typosquat domains.
+- **Scams (`scam`):** Fake giveaways, crypto-doubling schemes, advance-fee fraud, fake stores, and tech-support scams even when no login form is present.
+- **Hate and harassment (`hate_harassment`):** Content that attacks, dehumanizes, or incites hatred, exclusion, or expulsion against people based on protected attributes (religion, race, ethnicity, national origin, sexual orientation, gender identity, disability), such as antisemitic conspiracy claims, comparing a group to vermin or parasites, or targeted harassment and doxxing of individuals.
+- **Violent extremism (`violent_extremism`):** Glorification, recruitment, or support for violent extremist groups or ideologies, including praising mass shooters, distributing violent manifestos, or recruiting for armed race-war militias.
+- **Counter-speech and educational exemption (`benign`):** News reporting on hate crimes or extremism, history and Holocaust museum education, counter-speech and debunking pages, academic research, policy documentation, and fiction or reviews that discuss hate without endorsing it are scored benign (`<= 0.1`). The test is whether a page endorses or promotes abuse, not whether it mentions or quotes it to condemn it.
+
+Demo fixtures and live preview routes:
+- `/demo` (supports `?sample=<slug>` query parameters)
+- `/fixtures/hate-group` (fictional hate-group landing page fixture, `noindex`)
+- `/fixtures/anti-hate-education` (benign counter-speech / education fixture, `noindex`)
+- `/fixtures/fake-paypal`, `/fixtures/fake-microsoft`, `/fixtures/legit-bank`
+
+Run the synthetic hate and extremism evaluation (20 hand-written pages: 10 abusive, 10 tricky benign):
+```bash
+npx tsx scripts/eval-hate.ts
+npx tsx scripts/eval-hate.ts --rules-only
+npx tsx scripts/check-rules-fpr.ts
 ```
 
 ## What It Does
@@ -102,7 +125,7 @@ npm run bench -- --dataset phreshphish --rules-only
 - `agent/agent.ts`: the eve agent (Gemini 3.8 Flash, direct `@ai-sdk/google` provider).
 - `agent/tools/deep_scan.ts`: a durable workflow tool (`"use workflow"`). Each stage is a retryable `"use step"`: fetch HTML, rules, Flash, Argon (only on escalation), then persist with clustering.
 - `agent/tools/list_deployments.ts`: lists stored deployments by status for batch re-scans.
-- `agent/schedules/rescan.ts`: a daily 06:00 UTC schedule (a Vercel Cron Job) that re-scans `review` and `flagged` deployments.
+- No scheduled jobs. Scans run on deploy (webhook) and on demand. `POST /api/rescan` (bearer `EVE_SCAN_TOKEN`) re-scans `review` and `flagged` deployments when you call it; `examples/scheduled-rescan.md` shows how a cron re-scan would be wired, as a proof of concept only.
 - `agent/channels/eve.ts`: `/eve/v1/*` behind auth (an `EVE_SCAN_TOKEN` bearer, Vercel OIDC, or localhost in dev).
 - `pages/api/webhooks/vercel.ts`: verifies the signature, then starts an eve session (`eve/client`) and returns 202. If eve is unreachable or `EVE_HANDOFF=off`, it falls back to the same pipeline inline.
 - `next.config.ts` wraps the app in `withEve()`, so Next serves the UI and API and eve runs as a second service in the same Vercel project. eve needs **Node 24**.
@@ -139,7 +162,7 @@ Vercel signs the **raw** request body with `hex(HMAC-SHA1(secret, body))` in `x-
 - **Storage**: Neon Postgres via `@neondatabase/serverless` (legacy Redis and local memory fallback)
 - **Auth**: Neon managed Better Auth, with Google sign-in
 - **Models**: Gemini 3.8 Flash (tier 1) and Gemini 4 Argon with heavy thinking (tier 2) via `@ai-sdk/google`
-- **Deployment**: Vercel (Workflow + Sandbox + Cron)
+- **Deployment**: Vercel (Workflow + Sandbox)
 
 ## Setup
 
@@ -343,7 +366,7 @@ Implement `takeScreenshot()` in `lib/gemini/index.ts`:
 
 1. Implement screenshot capture with Playwright
 2. Add eve human-in-the-loop approval for auto-pause
-3. Wire alerting into the eve re-scan schedule
+3. Wire alerting into the re-scan flow (see examples/scheduled-rescan.md)
 4. Add dashboard authentication
 5. Tune Gemini prompt with production examples
 6. Add monitoring and alerting (Sentry, Datadog)
@@ -427,12 +450,12 @@ without redirects and keep it in place. The scanner validates public IPv4 addres
 pins DNS at connection time, checks redirects, and caps page size and request time.
 IPv6-only sites and nonstandard ports are currently unsupported.
 
-Set `CRON_SECRET` and deploy `vercel.json` for scheduled checks. The hourly job takes
-up to five sites due for their daily scan, oldest first; this requires a hosting plan
-that supports hourly cron and the configured function duration. At larger volumes,
-move this batch into a queue. Ownership is rechecked each time; a missing verification
-file pauses monitoring. The separate eve daily review schedule only handles enabled,
-verified Vercel sites. Scan failures remain failures; when Gemini is unavailable,
+Monitoring runs on demand, not on a schedule (hackathon scope: no crons are deployed).
+`GET /api/sites/monitor` with `Authorization: Bearer $CRON_SECRET` processes up to five
+verified sites due for a scan, oldest first, and rechecks ownership each time; a missing
+verification file pauses monitoring. To run it on a schedule later, add a Vercel cron for
+that path (see `examples/scheduled-rescan.md`); at larger volumes, move the batch into a queue.
+Scan failures remain failures; when Gemini is unavailable,
 the UI explicitly identifies a rules-only result. Email notifications and email-link
 sign-in are not implemented in this version.
 
@@ -442,7 +465,7 @@ sign-in are not implemented in this version.
 isolation, cross-origin requests, ownership gating, encrypted credentials, and unsafe
 URL rejection alongside the scanner tests. `npm run build` checks all pages and types.
 Live Google/Vercel authorization requires the provider settings above; a successful
-local build does not verify those external credentials or a deployed cron schedule.
+local build does not verify those external credentials.
 
 
 ### Workspace navigation

@@ -10,7 +10,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const sites = (await Promise.all((await accountStore.members('all-sites')).map(getSite)))
       .filter(s => s && s.kind === 'website' && s.monitoring && s.verifiedAt && (!s.lastScan || s.lastScan.at < Date.now() - 23 * 60 * 60 * 1000))
       .sort((a, b) => (a!.lastScan?.at || 0) - (b!.lastScan?.at || 0));
-    // Bounded batches fit the request deadline. Run hourly; each verified site is due daily.
+    // Bounded batches fit the request deadline. Triggered on demand (no cron deployed); each verified site is due daily.
     const results = await Promise.allSettled(sites.slice(0, 5).map(async site => {
       try { await verifySite(site!); }
       catch { site!.monitoring = false; site!.verifiedAt = null; site!.error = 'Ownership could not be re-verified. Monitoring paused; check your verification file.'; await saveSite(site!); return; }

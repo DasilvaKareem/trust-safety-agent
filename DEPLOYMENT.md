@@ -135,7 +135,7 @@ npm test
 
 ### Why eve? (and what runs on it)
 - **Durable execution**: `agent/tools/deep_scan.ts` is a `"use workflow"` tool whose stages (fetch, rules, Flash, Argon, persist) are retryable `"use step"`s.
-- **Scheduled jobs**: `agent/schedules/rescan.ts` re-scans review and flagged deployments daily at 06:00 UTC and deploys as a Vercel Cron Job.
+- **No scheduled jobs**: scans run on deploy and on demand. `POST /api/rescan` re-scans review and flagged deployments when called; `examples/scheduled-rescan.md` shows how to add a cron later.
 - **Webhook hand-off**: the webhook verifies the signature, then calls `POST /eve/v1/session` with `EVE_SCAN_TOKEN` and returns 202. If eve is unreachable or `EVE_HANDOFF=off`, it falls back to scanning inline.
 - **Runtime**: `withEve()` in `next.config.ts` runs eve as a second service in the same Vercel project. It requires Node 24 (`engines.node: 24.x`).
 - **Env**: `EVE_SCAN_TOKEN` (required for the hand-off). `EVE_AGENT_ORIGIN` is optional and defaults to the production URL. Set `DATABASE_URL` so both services share storage.
@@ -172,7 +172,7 @@ Rules contribute. Context signals count only when the page collects data:
 
 1. **Screenshot capture**: Implement with Playwright or screenshot service
 2. **Auto-pause**: Add eve HITL approval for deployment pause
-3. **Batch re-scan**: Scheduled job to re-check flagged deployments
+3. **Scheduled re-scan**: optional cron for `/api/rescan` (example in examples/scheduled-rescan.md)
 4. **Dashboard auth**: Add authentication before production
 5. **Rate limiting**: Handle Gemini API rate limits gracefully
 6. **Monitoring**: Add Sentry/Datadog for error tracking
