@@ -1,0 +1,26 @@
+{
+  "ranAt": "2026-10-25T13:38:30-07:00",
+  "endpoint": "POST https://trust-safety-agent.vercel.app/api/impersonation/find",
+  "deploySha": "30e4e2ca70e1e77921e063b6cdee42ed6d152238",
+  "request": {
+    "url": "https://trust-safety-agent.vercel.app",
+    "brand": "Argon Guard"
+  },
+  "report": {
+    "protected": {
+      "url": "https://trust-safety-agent.vercel.app/",
+      "brand": "Argon Guard",
+      "domain": "trust-safety-agent.vercel.app",
+      "title": "Meet Argon Guard"
+    },
+    "candidatesGenerated": 40,
+    "candidatesResolved": 40,
+    "liveHosts": 0,
+    "compared": 0,
+    "hits": [],
+    "reviewed": [],
+    "ctError": "crt.sh HTTP 502",
+    "elapsedMs": 931,
+    "truncated": false
+  }
+}

@@ -1,0 +1,174 @@
+{
+  "ranAt": "2026-10-25T13:38:00-07:00",
+  "endpoint": "POST https://trust-safety-agent.vercel.app/api/demo/scan",
+  "deploySha": "30e4e2ca70e1e77921e063b6cdee42ed6d152238",
+  "samples": {
+    "hate-group": {
+      "deployment": {
+        "id": "demo-9a0ee640a6ec1e80",
+        "ownerId": "demo-sample",
+        "installationId": "demo",
+        "projectId": "demo",
+        "url": "https://northern-covenant.vercel.app",
+        "deploymentUrl": "https://northern-covenant.vercel.app",
+        "createdAt": 1792960714925,
+        "rulesScore": 0.3,
+        "rulesReasons": [
+          "Contains dehumanizing language or conspiracy claims targeting a protected group"
+        ],
+        "geminiScore": 0.99,
+        "geminiReasons": [
+          "Promotes antisemitic conspiracy theories regarding control of banks and media",
+          "Uses dehumanizing language comparing a protected group to parasites",
+          "Calls for the exclusion and expulsion of a protected group from institutions and borders"
+        ],
+        "category": "hate_harassment",
+        "status": "flagged",
+        "contentHash": "4aad884886e28b52a84515c352616b32d277a937f438d9e226f42eee4c7e8bcf",
+        "simHash": "000000000001c94d"
+      },
+      "category": "hate_harassment",
+      "decidedBy": "argon",
+      "totalLatencyMs": 10456,
+      "rulesResult": {
+        "score": 0.3,
+        "reasons": [
+          "Contains dehumanizing language or conspiracy claims targeting a protected group"
+        ],
+        "categoryHint": "hate_harassment",
+        "flags": {
+          "hasHateSignals": true
+        }
+      },
+      "geminiAnalysis": {
+        "score": 0.99,
+        "category": "hate_harassment",
+        "reasons": [
+          "Promotes antisemitic conspiracy theories regarding control of banks and media",
+          "Uses dehumanizing language comparing a protected group to parasites",
+          "Calls for the exclusion and expulsion of a protected group from institutions and borders"
+        ],
+        "model": "gemini-4-argon",
+        "thinkingLevel": "high",
+        "latencyMs": 7787,
+        "usage": {
+          "inputTokens": 1866,
+          "outputTokens": 551,
+          "reasoningTokens": 473
+        }
+      },
+      "tiers": {
+        "fast": {
+          "score": 0.98,
+          "category": "hate_harassment",
+          "reasons": [
+            "Promotes blatant antisemitic conspiracy theories claiming control of banks and media",
+            "Uses severe dehumanizing language referring to a protected group as parasites",
+            "Explicitly incites exclusion, calling for a protected group to be driven out of civic institutions, universities, and national borders",
+            "Recruits members to take action on hateful ideology"
+          ],
+          "model": "gemini-3.8-flash",
+          "thinkingLevel": "low",
+          "latencyMs": 2661,
+          "usage": {
+            "inputTokens": 1438,
+            "outputTokens": 118,
+            "reasoningTokens": 0
+          }
+        },
+        "deep": {
+          "score": 0.99,
+          "category": "hate_harassment",
+          "reasons": [
+            "Promotes antisemitic conspiracy theories regarding control of banks and media",
+            "Uses dehumanizing language comparing a protected group to parasites",
+            "Calls for the exclusion and expulsion of a protected group from institutions and borders"
+          ],
+          "model": "gemini-4-argon",
+          "thinkingLevel": "high",
+          "latencyMs": 7787,
+          "usage": {
+            "inputTokens": 1866,
+            "outputTokens": 551,
+            "reasoningTokens": 473
+          }
+        },
+        "escalated": true,
+        "escalationReason": "fast score 0.98 >= 0.4",
+        "totalLatencyMs": 10448
+      }
+    },
+    "anti-hate-education": {
+      "deployment": {
+        "id": "demo-919e3a59b3d7bf42",
+        "ownerId": "demo-sample",
+        "installationId": "demo",
+        "projectId": "demo",
+        "url": "https://understanding-antisemitism.vercel.app",
+        "deploymentUrl": "https://understanding-antisemitism.vercel.app",
+        "createdAt": 1792960717617,
+        "rulesScore": 0,
+        "rulesReasons": [],
+        "geminiScore": 0,
+        "geminiReasons": [
+          "Educational and counter-speech content explicitly debunking antisemitic conspiracy myths and tropes",
+          "Analyzes dehumanizing tropes from a historical and educational perspective without endorsing them",
+          "Provides guidance on recognizing and reporting hate speech",
+          "Falls under MUST NOT FLAG exceptions for educational material and counter-speech"
+        ],
+        "category": "benign",
+        "status": "clean",
+        "contentHash": "1cde3951f7411d2a9be49f1f5a885ac097639cd9123cb3aee30f442a4c88feff",
+        "simHash": "00000000000559c7"
+      },
+      "category": "benign",
+      "decidedBy": "flash",
+      "totalLatencyMs": 2425,
+      "rulesResult": {
+        "score": 0,
+        "reasons": [],
+        "flags": {}
+      },
+      "geminiAnalysis": {
+        "score": 0,
+        "category": "benign",
+        "reasons": [
+          "Educational and counter-speech content explicitly debunking antisemitic conspiracy myths and tropes",
+          "Analyzes dehumanizing tropes from a historical and educational perspective without endorsing them",
+          "Provides guidance on recognizing and reporting hate speech",
+          "Falls under MUST NOT FLAG exceptions for educational material and counter-speech"
+        ],
+        "model": "gemini-3.8-flash",
+        "thinkingLevel": "low",
+        "latencyMs": 2422,
+        "usage": {
+          "inputTokens": 1468,
+          "outputTokens": 107,
+          "reasoningTokens": 0
+        }
+      },
+      "tiers": {
+        "fast": {
+          "score": 0,
+          "category": "benign",
+          "reasons": [
+            "Educational and counter-speech content explicitly debunking antisemitic conspiracy myths and tropes",
+            "Analyzes dehumanizing tropes from a historical and educational perspective without endorsing them",
+            "Provides guidance on recognizing and reporting hate speech",
+            "Falls under MUST NOT FLAG exceptions for educational material and counter-speech"
+          ],
+          "model": "gemini-3.8-flash",
+          "thinkingLevel": "low",
+          "latencyMs": 2422,
+          "usage": {
+            "inputTokens": 1468,
+            "outputTokens": 107,
+            "reasoningTokens": 0
+          }
+        },
+        "escalated": false,
+        "totalLatencyMs": 2422
+      }
+    }
+  }
+}
