@@ -1,6 +1,6 @@
 # Trust & Safety Agent for Vercel
 
-A Vercel integration that automatically scans every deployment for phishing and abuse using rules-based detection plus Google Gemini vision analysis. Built with [eve](https://www.npmjs.com/package/eve), Vercel's filesystem-first framework for durable backend AI agents.
+A Vercel integration that automatically scans every deployment for phishing and abuse using rules-based detection plus Google Gemini vision analysis. The durable deep scan, the daily re-scan and the scanning agent run on [eve](https://www.npmjs.com/package/eve), Vercel's filesystem-first framework for durable backend AI agents (see [What uses eve](#what-uses-eve)).
 
 **Built for:** CV Gemini 4 Argon Hackathon + Vercel Trust & Safety interview design showcase
 
@@ -8,10 +8,12 @@ A Vercel integration that automatically scans every deployment for phishing and 
 
 ```mermaid
 graph TB
-    A[Vercel Deployment] -->|webhook| B[Webhook Handler]
-    B -->|Fast Rules Check| C[Rules Scorer]
-    C -->|Save Initial Result| D[(Storage KV/Memory)]
-    C -->|Schedule if flagged| E[Eve Agent Deep Scan]
+    A[Vercel Deployment] -->|signed webhook, HMAC-SHA1| B[Webhook Handler]
+    B -->|202 + POST /eve/v1/session| E[eve agent: deep_scan workflow]
+    E -->|step| C[Rules Scorer]
+    C --> E
+    E -->|Update Result| D[(Storage KV/Memory)]
+    S[eve schedule: daily re-scan] --> E
     E -->|Fetch HTML| F[Deployment URL]
     E -->|Vision Analysis| G[Google Gemini 4]
     G -->|Classification Result| E
@@ -33,12 +35,19 @@ graph TB
 ## What It Does
 
 ### 1. Runtime Rules Check (Fast, Synchronous)
-On every deployment webhook:
-- **Login form detection**: Searches for `<input type="password">` + form + login keywords
-- **Brand keyword matching**: Flags pages with 3+ brand terms (PayPal, Microsoft, etc.) on non-brand domains
-- **Typosquatting**: Detects lookalike domains (`paypa1.com`, `g00gle.com`)
-- **Metadata signals**: CLI deploys without git source, new accounts (<7 days)
-- **Scoring**: Produces a 0-1 risk score with specific reasons
+On every deployment webhook. A login form alone is normal, and so is a brand name alone (security blogs, docs), so context signals only count when the page **collects data**:
+
+| Signal | Weight |
+|---|---|
+| Password form | 0.15 (alone stays clean) |
+| Card / SSN / seed-phrase / OTP fields | 0.30 |
+| Collects data + a third-party brand in title, headings, buttons, labels or logo alt (not on that brand's domain; "Sign in with Google" SSO buttons ignored) | 0.35 |
+| Collects data + form posts to a different site | 0.30 |
+| Collects data + urgency language ("suspended", "within 24 hours", "unpaid fee") | 0.15 |
+| Typosquat hostname (`paypa1`, `rnicrosoft`) | 0.50 |
+| CLI deploy without git / new account (< 7 days) | 0.15 / 0.10 |
+
+Score is capped at 1.0. `__tests__/rules-holdout.test.ts` checks the rules against hand-written pages that are not in the benchmark (SSO buttons, words like "apple" and "chase", off-site form posts), so tuning can't simply memorise the benchmark.
 
 ### 2. Two-tier Gemini Scan
 - **Tier 1, every deploy:** `gemini-3.8-flash` (low thinking, ~3.5 s, ~$0.0008/scan)
@@ -50,7 +59,29 @@ On every deployment webhook:
 Configure with `GEMINI_FAST_MODEL`, `GEMINI_DEEP_MODEL`, `GEMINI_FAST_THINKING_LEVEL`, `GEMINI_DEEP_THINKING_LEVEL` and `GEMINI_ESCALATION_THRESHOLD`. "Gemini 3.8 Flash Cyber" is only listed on Google Cloud's Agent Platform (Vertex AI), not in the Gemini Developer API, so the AI Studio key uses `gemini-3.8-flash`.
 
 ### Benchmark
-`npm run bench` runs a **synthetic** labeled set (`bench/dataset.ts`: 24 phishing kits, 23 benign pages including hard cases such as legitimate login pages and phishing-awareness articles) through rules-only, Flash-only, Argon-only, rules+Argon and tiered configs. Results are in [`bench/results.md`](bench/results.md) and `bench/results.json`.
+`npm run bench` runs a **synthetic** labeled set (`bench/dataset.ts`: 24 phishing kits, 23 benign pages including hard cases such as legitimate login pages and phishing-awareness articles) through rules-only, Flash-only, Argon-only, rules+Argon and tiered configs. Results are in [`bench/results.md`](bench/results.md) and `bench/results.json`. Latest run (Oct 25, 2026):
+
+| Config | Precision | Recall | F1 | FPR | p50 latency | Cost / scan |
+|---|---|---|---|---|---|---|
+| rules-only | 100.0% | 95.8% | 0.979 | 0.0% | 0.15 ms | $0 |
+| flash-only | 100.0% | 100.0% | 1.000 | 0.0% | 4030 ms | $0.00079 |
+| argon-only | 100.0% | 100.0% | 1.000 | 0.0% | 8781 ms | $0.00788 |
+| rules+argon | 100.0% | 100.0% | 1.000 | 0.0% | 8781 ms | $0.00788 |
+| tiered (rules+flash -> argon) | 100.0% | 100.0% | 1.000 | 0.0% | 10091 ms | $0.00538 |
+
+Tiered escalates **51.1%** of samples to Argon: all 24 phishing pages and none of the 23 benign ones. Before the rules rewrite, rules-only had a 34.8% FPR and 68.1% of samples escalated. The one remaining rules-only miss (phish-20, an Okta look-alike with a same-site form and no urgency) is caught by Flash. The set is small and synthetic, so treat 0% FPR as a sanity check, not a production rate. A legitimate shop checkout that collects card numbers, for example, still scores 0.30 and goes to review.
+
+### What uses eve
+- `agent/agent.ts`: the eve agent (Gemini 3.8 Flash, direct `@ai-sdk/google` provider).
+- `agent/tools/deep_scan.ts`: a durable workflow tool (`"use workflow"`). Each stage is a retryable `"use step"`: fetch HTML, rules, Flash, Argon (only on escalation), then persist with clustering.
+- `agent/tools/list_deployments.ts`: lists stored deployments by status for batch re-scans.
+- `agent/schedules/rescan.ts`: a daily 06:00 UTC schedule (a Vercel Cron Job) that re-scans `review` and `flagged` deployments.
+- `agent/channels/eve.ts`: `/eve/v1/*` behind auth (an `EVE_SCAN_TOKEN` bearer, Vercel OIDC, or localhost in dev).
+- `pages/api/webhooks/vercel.ts`: verifies the signature, then starts an eve session (`eve/client`) and returns 202. If eve is unreachable or `EVE_HANDOFF=off`, it falls back to the same pipeline inline.
+- `next.config.ts` wraps the app in `withEve()`, so Next serves the UI and API and eve runs as a second service in the same Vercel project. eve needs **Node 24**.
+
+### Webhook signature
+Vercel signs the **raw** request body with `hex(HMAC-SHA1(secret, body))` in `x-vercel-signature`. The route disables Next's body parser, checks the raw bytes with `timingSafeEqual`, and parses JSON only after the check passes. For integration webhooks the secret is the integration's Client Secret (set `VERCEL_INTEGRATION_WEBHOOK_SECRET` to it, or rely on the `VERCEL_CLIENT_SECRET` fallback). For account webhooks it is the secret shown when the webhook is created.
 
 ### 3. Clustering for Repeat Offenders
 - **Exact hash**: SHA-256 of page content
@@ -85,7 +116,7 @@ Configure with `GEMINI_FAST_MODEL`, `GEMINI_DEEP_MODEL`, `GEMINI_FAST_THINKING_L
 ## Setup
 
 ### Prerequisites
-- Node.js 22+ (eve requires Node 24, but runs on 22 with warnings)
+- Node.js 24 (required by eve; `engines.node` is `24.x`)
 - Vercel account
 - Google Cloud account (for Gemini API key)
 
@@ -106,7 +137,8 @@ cp .env.example .env.local
 Required for production:
 - `VERCEL_CLIENT_ID` - From Vercel Integration Console
 - `VERCEL_CLIENT_SECRET` - From Vercel Integration Console
-- `VERCEL_INTEGRATION_WEBHOOK_SECRET` - Webhook signing secret
+- `VERCEL_INTEGRATION_WEBHOOK_SECRET` - Webhook signing secret (the integration Client Secret; falls back to `VERCEL_CLIENT_SECRET`)
+- `EVE_SCAN_TOKEN` - Bearer token that the webhook uses to start eve sessions
 - `GOOGLE_GENERATIVE_AI_API_KEY` - Gemini API key from Google Cloud
 - `KV_REST_API_URL` - Upstash Redis URL (or omit for in-memory)
 - `KV_REST_API_TOKEN` - Upstash Redis token
@@ -158,9 +190,9 @@ npm test
 ```
 
 Tests cover:
-- Rules scorer (login forms, brand keywords, typosquats)
+- Rules scorer (signals, plus hand-written hold-out pages that are not in the benchmark)
 - SimHash clustering (Hamming distance, similarity matching)
-- Webhook signature verification
+- Webhook signature: real HMAC-SHA1 over a raw body; rejects re-serialized or tampered bodies, the wrong secret, sha256 digests and missing headers; tests the handler with the body parser off
 
 ### Build
 ```bash
@@ -249,7 +281,7 @@ Implement `takeScreenshot()` in `lib/gemini/index.ts`:
 1. **Start dev server**: `npm run dev`
 2. **Visit demo**: http://localhost:3000/demo
 3. **Scan fake PayPal**: Select "Fake PayPal Login" → Scan
-   - Rules score: ~75% (password form + brand keywords + typosquat)
+   - Rules score: 100% (password form + PayPal branding + typosquat)
    - Gemini score: ~90% (if API key set)
    - Status: Flagged
 4. **Scan clean page**: Select "Legitimate Banking Site" → Scan
@@ -268,13 +300,13 @@ Implement `takeScreenshot()` in `lib/gemini/index.ts`:
 - In-memory storage lost on restart (use KV for persistence)
 - No user authentication on dashboard (add before production)
 - Gemini rate limits not handled
-- No batch re-scanning job (implement as eve schedule)
+- In-memory storage is per-process: without KV, the Next app and the eve service do not share scan results
 
 ## Next Steps
 
 1. Implement screenshot capture with Playwright
 2. Add eve human-in-the-loop approval for auto-pause
-3. Build scheduled batch re-scan job
+3. Wire alerting into the eve re-scan schedule
 4. Add dashboard authentication
 5. Tune Gemini prompt with production examples
 6. Add monitoring and alerting (Sentry, Datadog)

@@ -129,11 +129,13 @@ npm test
 
 ## 🎯 Architecture Decisions
 
-### Why eve?
-- **Durable execution**: Vercel Workflow backend
-- **Scheduled jobs**: Easy cron-like scanning
-- **Human-in-the-loop**: Built-in approval flows (for future auto-pause)
-- **Vercel-native**: Optimal integration with platform
+### Why eve? (and what runs on it)
+- **Durable execution**: `agent/tools/deep_scan.ts` is a `"use workflow"` tool whose stages (fetch, rules, Flash, Argon, persist) are retryable `"use step"`s.
+- **Scheduled jobs**: `agent/schedules/rescan.ts` re-scans review and flagged deployments daily at 06:00 UTC and deploys as a Vercel Cron Job.
+- **Webhook hand-off**: the webhook verifies the signature, then calls `POST /eve/v1/session` with `EVE_SCAN_TOKEN` and returns 202. If eve is unreachable or `EVE_HANDOFF=off`, it falls back to scanning inline.
+- **Runtime**: `withEve()` in `next.config.ts` runs eve as a second service in the same Vercel project. It requires Node 24 (`engines.node: 24.x`).
+- **Env**: `EVE_SCAN_TOKEN` (required for the hand-off). `EVE_AGENT_ORIGIN` is optional and defaults to the production URL. Set `KV_REST_API_URL`/`KV_REST_API_TOKEN` so both services share storage.
+- **Webhook secret**: Vercel signs with HMAC-SHA1 over the raw body. Set `VERCEL_INTEGRATION_WEBHOOK_SECRET` to the integration Client Secret, or to the account-webhook secret.
 
 ### Why Flash then Argon?
 - **Flash on every deploy**: ~3.5 s and ~$0.0008 per scan on the synthetic benchmark
@@ -152,9 +154,12 @@ npm test
 - **Review**: 0.3 ≤ Score < 0.6 (human review queue)
 - **Flagged**: Score ≥ 0.6 (alert, consider blocking)
 
-Rules contribute:
-- Login form: +0.4
-- Brand keywords: +0.35
+Rules contribute. Context signals count only when the page collects data:
+- Password form: +0.15
+- Card / SSN / seed-phrase / OTP fields: +0.3
+- Third-party brand shown prominently while collecting data: +0.35
+- Form posts to a different site: +0.3
+- Urgency language next to a form: +0.15
 - Typosquat: +0.5
 - CLI deploy: +0.15
 - New account: +0.1

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-25T18:21:40.394Z",
+  "generatedAt": "2026-10-25T18:38:28.982Z",
   "dataset": {
     "synthetic": true,
     "note": "Synthetic, hand-written samples created for this benchmark (bench/dataset.ts). Not real-world traffic.",
@@ -27,52 +27,43 @@
       "thinkingLevel": "low",
       "calls": 47,
       "avgInputTokens": 457,
-      "avgOutputTokens": 122,
-      "avgReasoningTokens": 19,
+      "avgOutputTokens": 120,
+      "avgReasoningTokens": 14,
       "totalInputTokens": 21462,
-      "totalOutputTokens": 5753
+      "totalOutputTokens": 5632
     },
     "deep": {
       "model": "gemini-4-argon",
       "thinkingLevel": "high",
       "calls": 47,
       "avgInputTokens": 743,
-      "avgOutputTokens": 651,
-      "avgReasoningTokens": 539,
+      "avgOutputTokens": 640,
+      "avgReasoningTokens": 526,
       "totalInputTokens": 34923,
-      "totalOutputTokens": 30577
+      "totalOutputTokens": 30070
     }
   },
-  "wallClockSec": 125.04,
+  "wallClockSec": 115.162,
   "results": {
     "rules-only": {
-      "tp": 22,
-      "fp": 8,
-      "tn": 15,
-      "fn": 2,
-      "precision": 0.7333333333333333,
-      "recall": 0.9166666666666666,
-      "f1": 0.8148148148148148,
-      "falsePositiveRate": 0.34782608695652173,
-      "accuracy": 0.7872340425531915,
+      "tp": 23,
+      "fp": 0,
+      "tn": 23,
+      "fn": 1,
+      "precision": 1,
+      "recall": 0.9583333333333334,
+      "f1": 0.9787234042553191,
+      "falsePositiveRate": 0,
+      "accuracy": 0.9787234042553191,
       "latencyMs": {
-        "p50": 0.1318689999898197,
-        "p95": 1.0219539999999938
+        "p50": 0.1545060000025842,
+        "p95": 0.7405240000080084
       },
       "costPerScanUsd": 0,
       "costPer1kScansUsd": 0,
       "modelErrors": 0,
       "misclassified": [
-        "FN phish-09",
-        "FN phish-11",
-        "FP benign-15",
-        "FP benign-16",
-        "FP benign-17",
-        "FP benign-18",
-        "FP benign-20",
-        "FP benign-21",
-        "FP benign-22",
-        "FP demo-bank"
+        "FN phish-20"
       ]
     },
     "flash-only": {
@@ -86,11 +77,11 @@
       "falsePositiveRate": 0,
       "accuracy": 1,
       "latencyMs": {
-        "p50": 3554,
-        "p95": 4878
+        "p50": 4030,
+        "p95": 6651
       },
-      "costPerScanUsd": 0.0008014946808510639,
-      "costPer1kScansUsd": 0.8014946808510639,
+      "costPerScanUsd": 0.0007918404255319149,
+      "costPer1kScansUsd": 0.7918404255319149,
       "modelErrors": 0,
       "misclassified": []
     },
@@ -105,41 +96,32 @@
       "falsePositiveRate": 0,
       "accuracy": 1,
       "latencyMs": {
-        "p50": 9523,
-        "p95": 15558
+        "p50": 8781,
+        "p95": 14483
       },
-      "costPerScanUsd": 0.00799182978723404,
-      "costPer1kScansUsd": 7.991829787234041,
+      "costPerScanUsd": 0.007883957446808507,
+      "costPer1kScansUsd": 7.883957446808507,
       "modelErrors": 0,
       "misclassified": []
     },
     "rules+argon": {
       "tp": 24,
-      "fp": 8,
-      "tn": 15,
+      "fp": 0,
+      "tn": 23,
       "fn": 0,
-      "precision": 0.75,
+      "precision": 1,
       "recall": 1,
-      "f1": 0.8571428571428571,
-      "falsePositiveRate": 0.34782608695652173,
-      "accuracy": 0.8297872340425532,
+      "f1": 1,
+      "falsePositiveRate": 0,
+      "accuracy": 1,
       "latencyMs": {
-        "p50": 9523.194573,
-        "p95": 15558.112514
+        "p50": 8781.384132,
+        "p95": 14483.211853999994
       },
-      "costPerScanUsd": 0.00799182978723404,
-      "costPer1kScansUsd": 7.991829787234041,
+      "costPerScanUsd": 0.007883957446808507,
+      "costPer1kScansUsd": 7.883957446808507,
       "modelErrors": 0,
-      "misclassified": [
-        "FP benign-15",
-        "FP benign-16",
-        "FP benign-17",
-        "FP benign-18",
-        "FP benign-20",
-        "FP benign-21",
-        "FP benign-22",
-        "FP demo-bank"
-      ]
+      "misclassified": []
     },
     "tiered (rules+flash -> argon)": {
       "tp": 24,
@@ -152,12 +134,12 @@
       "falsePositiveRate": 0,
       "accuracy": 1,
       "latencyMs": {
-        "p50": 12316.06105,
-        "p95": 18852.112514
+        "p50": 10090.511749,
+        "p95": 17759.175911000006
       },
-      "costPerScanUsd": 0.006766303191489363,
-      "costPer1kScansUsd": 6.766303191489363,
-      "escalationRate": 0.6808510638297872,
+      "costPerScanUsd": 0.005376904255319148,
+      "costPer1kScansUsd": 5.376904255319148,
+      "escalationRate": 0.5106382978723404,
       "modelErrors": 0,
       "misclassified": []
     }
@@ -170,9 +152,9 @@
       "url": "https://paypa1-secure.example.com/signin",
       "rules": 1,
       "flash": 0.98,
-      "flashMs": 3038,
+      "flashMs": 4049,
       "argon": 0.98,
-      "argonMs": 10259,
+      "argonMs": 7145,
       "argonBrand": "PayPal"
     },
     {
@@ -182,9 +164,9 @@
       "url": "https://rnicrosoft-login.vercel.app/auth",
       "rules": 1,
       "flash": 1,
-      "flashMs": 3505,
+      "flashMs": 4030,
       "argon": 0.99,
-      "argonMs": 8395,
+      "argonMs": 8593,
       "argonBrand": "Microsoft"
     },
     {
@@ -194,9 +176,9 @@
       "url": "https://g00gle-workspace-verify.example.net/login",
       "rules": 1,
       "flash": 1,
-      "flashMs": 4753,
-      "argon": 0.99,
-      "argonMs": 13800,
+      "flashMs": 5152,
+      "argon": 0.98,
+      "argonMs": 8378,
       "argonBrand": "Google"
     },
     {
@@ -206,9 +188,9 @@
       "url": "https://appl3-id-support.example.org/manage",
       "rules": 1,
       "flash": 0.98,
-      "flashMs": 4878,
+      "flashMs": 4371,
       "argon": 0.98,
-      "argonMs": 7438,
+      "argonMs": 12492,
       "argonBrand": "Apple"
     },
     {
@@ -217,10 +199,10 @@
       "category": "brand-impersonation-amazon-typosquat",
       "url": "https://arnazon-order-alert.vercel.app/ap/signin",
       "rules": 1,
-      "flash": 0.98,
-      "flashMs": 4066,
-      "argon": 0.99,
-      "argonMs": 14699,
+      "flash": 1,
+      "flashMs": 6651,
+      "argon": 0.98,
+      "argonMs": 9975,
       "argonBrand": "Amazon"
     },
     {
@@ -228,11 +210,11 @@
       "label": "phishing",
       "category": "brand-impersonation-chase-generic-domain",
       "url": "https://secure-banking-portal.example.com/verify",
-      "rules": 0.75,
-      "flash": 1,
-      "flashMs": 3901,
-      "argon": 0.99,
-      "argonMs": 10694,
+      "rules": 0.8,
+      "flash": 0.98,
+      "flashMs": 4518,
+      "argon": 0.98,
+      "argonMs": 5572,
       "argonBrand": "Chase"
     },
     {
@@ -240,11 +222,11 @@
       "label": "phishing",
       "category": "brand-impersonation-wellsfargo-typosquat",
       "url": "https://wellsfarg0-alerts.example.net/connect",
-      "rules": 0.35,
-      "flash": 0.98,
-      "flashMs": 3569,
+      "rules": 0.5,
+      "flash": 1,
+      "flashMs": 4300,
       "argon": 0.99,
-      "argonMs": 13746,
+      "argonMs": 8781,
       "argonBrand": "Wells Fargo"
     },
     {
@@ -252,11 +234,11 @@
       "label": "phishing",
       "category": "brand-impersonation-coinbase-otp-only",
       "url": "https://wallet-session-check.vercel.app/verify-otp",
-      "rules": 0.35,
+      "rules": 0.65,
       "flash": 1,
-      "flashMs": 3028,
-      "argon": 0.99,
-      "argonMs": 8124,
+      "flashMs": 4266,
+      "argon": 1,
+      "argonMs": 12373,
       "argonBrand": "Coinbase"
     },
     {
@@ -264,11 +246,11 @@
       "label": "phishing",
       "category": "crypto-seed-phrase-metamask",
       "url": "https://web3-vault-restore.vercel.app/import",
-      "rules": 0,
+      "rules": 0.8,
       "flash": 1,
-      "flashMs": 6769,
+      "flashMs": 4290,
       "argon": 1,
-      "argonMs": 8229,
+      "argonMs": 8677,
       "argonBrand": "MetaMask"
     },
     {
@@ -276,11 +258,11 @@
       "label": "phishing",
       "category": "credit-card-harvesting-netflix",
       "url": "https://billing-update-center.example.org/payment",
-      "rules": 0.35,
+      "rules": 0.65,
       "flash": 0.98,
-      "flashMs": 3392,
-      "argon": 0.99,
-      "argonMs": 12921,
+      "flashMs": 3573,
+      "argon": 0.98,
+      "argonMs": 13664,
       "argonBrand": "Netflix"
     },
     {
@@ -288,11 +270,11 @@
       "label": "phishing",
       "category": "package-delivery-fee-dhl-usps",
       "url": "https://parcel-customs-clearance.example.com/track",
-      "rules": 0,
+      "rules": 0.65,
       "flash": 0.98,
-      "flashMs": 3446,
+      "flashMs": 4361,
       "argon": 0.98,
-      "argonMs": 8107,
+      "argonMs": 13932,
       "argonBrand": "USPS / DHL"
     },
     {
@@ -302,21 +284,21 @@
       "url": "https://faceb00k-page-appeals.vercel.app/review",
       "rules": 1,
       "flash": 1,
-      "flashMs": 3072,
+      "flashMs": 4191,
       "argon": 0.99,
-      "argonMs": 14840,
-      "argonBrand": "Facebook"
+      "argonMs": 11111,
+      "argonBrand": "Facebook (Meta)"
     },
     {
       "id": "phish-13",
       "label": "phishing",
       "category": "brand-impersonation-instagram-badge",
       "url": "https://creator-badge-portal.example.net/apply",
-      "rules": 0.75,
+      "rules": 0.5,
       "flash": 0.98,
-      "flashMs": 3512,
+      "flashMs": 5284,
       "argon": 0.98,
-      "argonMs": 5901,
+      "argonMs": 8987,
       "argonBrand": "Instagram"
     },
     {
@@ -324,11 +306,11 @@
       "label": "phishing",
       "category": "brand-impersonation-linkedin-generic-domain",
       "url": "https://inmail-document-viewer.vercel.app/login",
-      "rules": 0.75,
+      "rules": 0.5,
       "flash": 1,
-      "flashMs": 3554,
+      "flashMs": 4526,
       "argon": 0.99,
-      "argonMs": 12319,
+      "argonMs": 6526,
       "argonBrand": "LinkedIn"
     },
     {
@@ -336,11 +318,11 @@
       "label": "phishing",
       "category": "brand-impersonation-dropbox-document",
       "url": "https://cloud-file-transfer.example.org/shared-pdf",
-      "rules": 0.75,
+      "rules": 0.5,
       "flash": 0.98,
-      "flashMs": 3328,
+      "flashMs": 3715,
       "argon": 0.98,
-      "argonMs": 11722,
+      "argonMs": 12795,
       "argonBrand": "Dropbox"
     },
     {
@@ -348,11 +330,11 @@
       "label": "phishing",
       "category": "brand-impersonation-docusign",
       "url": "https://docusign-envelope-review.example.com/sign",
-      "rules": 0.35,
+      "rules": 0.5,
       "flash": 0.98,
-      "flashMs": 5048,
+      "flashMs": 4726,
       "argon": 0.98,
-      "argonMs": 8424,
+      "argonMs": 14890,
       "argonBrand": "DocuSign"
     },
     {
@@ -360,11 +342,11 @@
       "label": "phishing",
       "category": "brand-impersonation-adobe-minimal",
       "url": "https://ad0be-pdf-cloud.vercel.app/reader",
-      "rules": 0.75,
+      "rules": 0.5,
       "flash": 0.98,
-      "flashMs": 3685,
+      "flashMs": 4834,
       "argon": 0.99,
-      "argonMs": 13199,
+      "argonMs": 11009,
       "argonBrand": "Adobe"
     },
     {
@@ -372,11 +354,11 @@
       "label": "phishing",
       "category": "brand-impersonation-steam-generic-domain",
       "url": "https://trade-offer-gift.example.net/community",
-      "rules": 0.75,
+      "rules": 0.5,
       "flash": 1,
-      "flashMs": 4435,
-      "argon": 0.98,
-      "argonMs": 13462,
+      "flashMs": 3405,
+      "argon": 0.99,
+      "argonMs": 9595,
       "argonBrand": "Steam"
     },
     {
@@ -384,11 +366,11 @@
       "label": "phishing",
       "category": "brand-impersonation-stripe-generic-domain",
       "url": "https://account-review-portal.vercel.app/payouts",
-      "rules": 0.75,
+      "rules": 0.5,
       "flash": 0.98,
-      "flashMs": 4004,
-      "argon": 0.98,
-      "argonMs": 10679,
+      "flashMs": 4366,
+      "argon": 0.99,
+      "argonMs": 13393,
       "argonBrand": "Stripe"
     },
     {
@@ -396,11 +378,11 @@
       "label": "phishing",
       "category": "brand-impersonation-okta-minimal",
       "url": "https://sso-corp-gateway.example.org/login",
-      "rules": 0.75,
+      "rules": 0.15,
       "flash": 0.95,
-      "flashMs": 3294,
-      "argon": 0.95,
-      "argonMs": 15558,
+      "flashMs": 4885,
+      "argon": 0.9,
+      "argonMs": 9324,
       "argonBrand": "Okta"
     },
     {
@@ -408,11 +390,11 @@
       "label": "phishing",
       "category": "brand-impersonation-github-generic-domain",
       "url": "https://security-token-audit.vercel.app/session",
-      "rules": 0.75,
-      "flash": 0.99,
-      "flashMs": 3672,
+      "rules": 0.5,
+      "flash": 0.98,
+      "flashMs": 3769,
       "argon": 0.99,
-      "argonMs": 10134,
+      "argonMs": 8136,
       "argonBrand": "GitHub"
     },
     {
@@ -420,11 +402,11 @@
       "label": "phishing",
       "category": "brand-impersonation-bankofamerica",
       "url": "https://bofa-card-verify.example.com/auth",
-      "rules": 0.75,
+      "rules": 0.5,
       "flash": 0.98,
-      "flashMs": 4212,
-      "argon": 0.99,
-      "argonMs": 13321,
+      "flashMs": 4680,
+      "argon": 0.98,
+      "argonMs": 6930,
       "argonBrand": "Bank of America"
     },
     {
@@ -434,9 +416,9 @@
       "url": "https://docs.nebula-db.example.com/getting-started",
       "rules": 0,
       "flash": 0,
-      "flashMs": 3658,
+      "flashMs": 5411,
       "argon": 0,
-      "argonMs": 6103,
+      "argonMs": 6601,
       "argonBrand": null
     },
     {
@@ -446,9 +428,9 @@
       "url": "https://cli-docs.buildkite-demo.vercel.app/config",
       "rules": 0,
       "flash": 0,
-      "flashMs": 3186,
+      "flashMs": 4284,
       "argon": 0,
-      "argonMs": 9523,
+      "argonMs": 6890,
       "argonBrand": null
     },
     {
@@ -458,9 +440,9 @@
       "url": "https://alex-rivera-dev.vercel.app/",
       "rules": 0,
       "flash": 0,
-      "flashMs": 3936,
+      "flashMs": 3163,
       "argon": 0,
-      "argonMs": 6089,
+      "argonMs": 6636,
       "argonBrand": null
     },
     {
@@ -470,9 +452,9 @@
       "url": "https://maya.codes.example.org/projects",
       "rules": 0,
       "flash": 0,
-      "flashMs": 4430,
+      "flashMs": 8429,
       "argon": 0,
-      "argonMs": 9228,
+      "argonMs": 13822,
       "argonBrand": null
     },
     {
@@ -482,9 +464,9 @@
       "url": "https://pulsemetrics.example.com/",
       "rules": 0,
       "flash": 0,
-      "flashMs": 3176,
+      "flashMs": 2536,
       "argon": 0,
-      "argonMs": 9404,
+      "argonMs": 6025,
       "argonBrand": null
     },
     {
@@ -494,9 +476,9 @@
       "url": "https://chrono-sync-app.vercel.app/",
       "rules": 0,
       "flash": 0,
-      "flashMs": 4028,
+      "flashMs": 4472,
       "argon": 0,
-      "argonMs": 7988,
+      "argonMs": 5398,
       "argonBrand": null
     },
     {
@@ -506,9 +488,9 @@
       "url": "https://blog.scalegrid.example.net/posts/raft-consensus",
       "rules": 0,
       "flash": 0,
-      "flashMs": 3229,
+      "flashMs": 3104,
       "argon": 0,
-      "argonMs": 6302,
+      "argonMs": 6548,
       "argonBrand": null
     },
     {
@@ -518,9 +500,9 @@
       "url": "https://notes.wanderlust-kitchen.example.org/sourdough-starter",
       "rules": 0,
       "flash": 0,
-      "flashMs": 3072,
+      "flashMs": 3618,
       "argon": 0,
-      "argonMs": 6043,
+      "argonMs": 5812,
       "argonBrand": null
     },
     {
@@ -530,9 +512,9 @@
       "url": "https://shop.keycraft.example.com/products/tactile-75",
       "rules": 0,
       "flash": 0,
-      "flashMs": 4214,
+      "flashMs": 3784,
       "argon": 0,
-      "argonMs": 8194,
+      "argonMs": 7368,
       "argonBrand": null
     },
     {
@@ -542,9 +524,9 @@
       "url": "https://artisan-roast-store.vercel.app/items/ceramic-v60",
       "rules": 0,
       "flash": 0,
-      "flashMs": 2581,
+      "flashMs": 3400,
       "argon": 0,
-      "argonMs": 7692,
+      "argonMs": 7491,
       "argonBrand": null
     },
     {
@@ -554,9 +536,9 @@
       "url": "https://olive-and-thyme.example.net/menu",
       "rules": 0,
       "flash": 0,
-      "flashMs": 3737,
+      "flashMs": 3399,
       "argon": 0,
-      "argonMs": 10652,
+      "argonMs": 7540,
       "argonBrand": null
     },
     {
@@ -566,9 +548,9 @@
       "url": "https://status.cloudmesh.example.org/",
       "rules": 0,
       "flash": 0,
-      "flashMs": 3369,
+      "flashMs": 2781,
       "argon": 0,
-      "argonMs": 6740,
+      "argonMs": 6885,
       "argonBrand": null
     },
     {
@@ -578,9 +560,9 @@
       "url": "https://hyperion-router.vercel.app/",
       "rules": 0,
       "flash": 0,
-      "flashMs": 3235,
+      "flashMs": 3616,
       "argon": 0,
-      "argonMs": 9736,
+      "argonMs": 6048,
       "argonBrand": null
     },
     {
@@ -590,9 +572,9 @@
       "url": "https://zengarden-ssg.example.com/",
       "rules": 0,
       "flash": 0,
-      "flashMs": 3388,
+      "flashMs": 3794,
       "argon": 0,
-      "argonMs": 9262,
+      "argonMs": 8394,
       "argonBrand": null
     },
     {
@@ -600,11 +582,11 @@
       "label": "benign",
       "category": "hard-benign-legit-saas-login",
       "url": "https://app.acmecrm.example.com/login",
-      "rules": 0.75,
+      "rules": 0.15,
       "flash": 0,
-      "flashMs": 3397,
+      "flashMs": 4016,
       "argon": 0,
-      "argonMs": 6407,
+      "argonMs": 9127,
       "argonBrand": null
     },
     {
@@ -612,11 +594,11 @@
       "label": "benign",
       "category": "hard-benign-legit-hr-portal-login",
       "url": "https://portal.northstar-hr.example.net/signin",
-      "rules": 0.75,
-      "flash": 0.05,
-      "flashMs": 4563,
+      "rules": 0.15,
+      "flash": 0.1,
+      "flashMs": 4209,
       "argon": 0,
-      "argonMs": 10934,
+      "argonMs": 14483,
       "argonBrand": null
     },
     {
@@ -624,11 +606,11 @@
       "label": "benign",
       "category": "hard-benign-phishing-awareness-tutorial",
       "url": "https://security-academy.example.org/tutorials/recognizing-phishing",
-      "rules": 0.35,
+      "rules": 0,
       "flash": 0,
-      "flashMs": 3128,
+      "flashMs": 3377,
       "argon": 0,
-      "argonMs": 17242,
+      "argonMs": 11346,
       "argonBrand": null
     },
     {
@@ -636,11 +618,11 @@
       "label": "benign",
       "category": "hard-benign-security-blog-typosquatting",
       "url": "https://infosec-notes.vercel.app/articles/defending-against-lookalike-domains",
-      "rules": 0.35,
+      "rules": 0,
       "flash": 0,
-      "flashMs": 4056,
+      "flashMs": 3732,
       "argon": 0,
-      "argonMs": 13621,
+      "argonMs": 7130,
       "argonBrand": null
     },
     {
@@ -650,9 +632,9 @@
       "url": "https://harborview-credit-union.example.com/savings-plans",
       "rules": 0,
       "flash": 0,
-      "flashMs": 3283,
+      "flashMs": 3815,
       "argon": 0,
-      "argonMs": 6930,
+      "argonMs": 10483,
       "argonBrand": null
     },
     {
@@ -660,11 +642,11 @@
       "label": "benign",
       "category": "hard-benign-oauth-github-devtool",
       "url": "https://deploypreview-ci.vercel.app/auth",
-      "rules": 0.35,
+      "rules": 0,
       "flash": 0.05,
-      "flashMs": 3272,
+      "flashMs": 3046,
       "argon": 0,
-      "argonMs": 10372,
+      "argonMs": 20602,
       "argonBrand": null
     },
     {
@@ -672,11 +654,11 @@
       "label": "benign",
       "category": "hard-benign-password-manager-landing",
       "url": "https://ironvault-pass.example.net/",
-      "rules": 0.35,
-      "flash": 0.05,
-      "flashMs": 3302,
+      "rules": 0,
+      "flash": 0.1,
+      "flashMs": 3477,
       "argon": 0,
-      "argonMs": 7607,
+      "argonMs": 10600,
       "argonBrand": null
     },
     {
@@ -684,11 +666,11 @@
       "label": "benign",
       "category": "hard-benign-security-docs-2fa",
       "url": "https://help.stackforge.example.org/security/two-factor-authentication",
-      "rules": 0.35,
+      "rules": 0,
       "flash": 0,
-      "flashMs": 4439,
+      "flashMs": 3440,
       "argon": 0,
-      "argonMs": 12064,
+      "argonMs": 6920,
       "argonBrand": null
     },
     {
@@ -698,9 +680,9 @@
       "url": "https://paypa1-secure.example.com",
       "rules": 1,
       "flash": 0.98,
-      "flashMs": 3838,
+      "flashMs": 3473,
       "argon": 0.99,
-      "argonMs": 7856,
+      "argonMs": 9048,
       "argonBrand": "PayPal"
     },
     {
@@ -710,9 +692,9 @@
       "url": "https://micr0soft-login.example.com",
       "rules": 1,
       "flash": 0.98,
-      "flashMs": 3762,
+      "flashMs": 3335,
       "argon": 0.99,
-      "argonMs": 16708,
+      "argonMs": 13530,
       "argonBrand": "Microsoft"
     },
     {
@@ -720,11 +702,11 @@
       "label": "benign",
       "category": "repo-demo-sample",
       "url": "https://examplebank.com",
-      "rules": 0.35,
+      "rules": 0,
       "flash": 0,
-      "flashMs": 3055,
+      "flashMs": 8300,
       "argon": 0,
-      "argonMs": 6347,
+      "argonMs": 12445,
       "argonBrand": null
     }
   ]

