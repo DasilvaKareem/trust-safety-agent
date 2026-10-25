@@ -9,7 +9,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 const mockLookup = jest.fn<any>();
 const mockHttpsRequest = jest.fn<any>();
 const mockHttpRequest = jest.fn<any>();
-const mockGenerateObject = jest.fn<any>();
+const mockGenerateText = jest.fn<any>();
 const mockReadPublicPage = jest.fn<any>();
 
 jest.unstable_mockModule('node:dns/promises', () => ({
@@ -25,7 +25,8 @@ jest.unstable_mockModule('node:http', () => ({
 }));
 
 jest.unstable_mockModule('ai', () => ({
-  generateObject: mockGenerateObject,
+  generateText: mockGenerateText,
+  Output: { object: (opts: unknown) => opts },
   jsonSchema: (s: unknown) => s,
 }));
 
@@ -105,7 +106,7 @@ describe('Impersonation finder', () => {
     mockLookup.mockReset();
     mockHttpsRequest.mockReset();
     mockHttpRequest.mockReset();
-    mockGenerateObject.mockReset();
+    mockGenerateText.mockReset();
     mockReadPublicPage.mockReset();
     mockReadPublicPage.mockResolvedValue('<html><head><title>Protected Brand</title></head><body>Official site</body></html>');
     fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
@@ -232,9 +233,9 @@ describe('Impersonation finder', () => {
     });
 
     // Case A: Flash returns confidence 0.5, impersonating=true -> escalates to Argon
-    mockGenerateObject
+    mockGenerateText
       .mockResolvedValueOnce({
-        object: {
+        output: {
           impersonating: true,
           confidence: 0.5,
           reasons: ['Suspicious PayPal branding on lookalike domain'],
@@ -242,7 +243,7 @@ describe('Impersonation finder', () => {
         },
       })
       .mockResolvedValueOnce({
-        object: {
+        output: {
           impersonating: true,
           confidence: 0.92,
           reasons: ['Confirmed typosquat credential harvester targeting PayPal'],
@@ -251,15 +252,15 @@ describe('Impersonation finder', () => {
       });
 
     const escalatedVerdict = await judgeCandidate(protectedPage, candidate);
-    expect(mockGenerateObject).toHaveBeenCalledTimes(2);
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
     expect(escalatedVerdict.decidedBy).toBe('argon');
     expect(escalatedVerdict.impersonating).toBe(true);
     expect(escalatedVerdict.confidence).toBe(0.92);
 
     // Case B: Flash returns confidence 0.95, impersonating=true -> Argon skipped
-    mockGenerateObject.mockReset();
-    mockGenerateObject.mockResolvedValueOnce({
-      object: {
+    mockGenerateText.mockReset();
+    mockGenerateText.mockResolvedValueOnce({
+      output: {
         impersonating: true,
         confidence: 0.95,
         reasons: ['Clear PayPal phishing clone on paypa1.com'],
@@ -268,7 +269,7 @@ describe('Impersonation finder', () => {
     });
 
     const fastVerdict = await judgeCandidate(protectedPage, candidate);
-    expect(mockGenerateObject).toHaveBeenCalledTimes(1);
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
     expect(fastVerdict.decidedBy).toBe('flash');
     expect(fastVerdict.impersonating).toBe(true);
     expect(fastVerdict.confidence).toBe(0.95);

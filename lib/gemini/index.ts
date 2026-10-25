@@ -3,7 +3,7 @@
  */
 
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { generateObject, jsonSchema } from 'ai';
+import { generateText, Output, jsonSchema } from 'ai';
 
 export const CONTENT_CATEGORIES = [
   'phishing',
@@ -203,11 +203,11 @@ export async function analyzeWithGemini(
       parts.push({ type: 'image', image: screenshotBase64 });
     }
 
-    const result = await generateObject({
+    const result = await generateText({
       model,
       abortSignal: AbortSignal.timeout(35_000),
       maxRetries: 0,
-      schema: analysisSchema,
+      output: Output.object({ schema: analysisSchema }),
       messages: [{ role: 'user', content: parts }],
       providerOptions: {
         google: {
@@ -216,7 +216,7 @@ export async function analyzeWithGemini(
       },
     });
 
-    const normalized = normalizeAnalysis(result.object);
+    const normalized = normalizeAnalysis(result.output);
     const u: any = result.usage ?? {};
     return {
       ...normalized,

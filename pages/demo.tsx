@@ -145,7 +145,7 @@ export default function DemoPage({ user }: { user: User }) {
 
   const renderFixtureGroup = (title: string, fixtures: DemoFixture[]) => (
     <div style={{ marginBottom: '1rem' }}>
-      <div style={{ fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase', color: '#666', marginBottom: '0.25rem' }}>
+      <div style={{ fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase', color: '#A1A1A1', marginBottom: '0.25rem' }}>
         {title}
       </div>
       {fixtures.map(page => (
@@ -172,7 +172,7 @@ export default function DemoPage({ user }: { user: User }) {
             href={`/fixtures/${page.slug}`}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ fontSize: '0.8rem', color: '#0070f3', marginLeft: '0.5rem', whiteSpace: 'nowrap' }}
+            style={{ fontSize: '0.8rem', color: '#0090FF', marginLeft: '0.5rem', whiteSpace: 'nowrap' }}
           >
             view page
           </a>
@@ -234,7 +234,7 @@ export default function DemoPage({ user }: { user: User }) {
               width: '100%',
               padding: '0.75rem',
               marginBottom: '1rem',
-              border: '1px solid #e5e5e5',
+              border: '1px solid #2E2E2E',
               borderRadius: '4px',
             }}
           />
@@ -246,7 +246,7 @@ export default function DemoPage({ user }: { user: User }) {
           >
             {isScanning ? 'Scanning...' : 'Scan URL'}
           </button>
-          <p style={{ fontSize: '0.75rem', color: '#999', marginTop: '0.5rem' }}>
+          <p style={{ fontSize: '0.75rem', color: '#A1A1A1', marginTop: '0.5rem' }}>
             Note: URL must be publicly accessible (e.g. a live /fixtures/&lt;slug&gt; URL)
           </p>
         </section>
@@ -272,8 +272,8 @@ export default function DemoPage({ user }: { user: User }) {
                     borderRadius: '12px',
                     fontSize: '0.875rem',
                     fontWeight: '500',
-                    background: resolvedCategory === 'benign' ? '#e8f5e9' : '#fbe9e7',
-                    color: resolvedCategory === 'benign' ? '#2e7d32' : '#b71c1c',
+                    background: resolvedCategory === 'benign' ? '#15332b' : '#3b202b',
+                    color: resolvedCategory === 'benign' ? '#98d9bc' : '#f2a6bc',
                   }}
                 >
                   {CATEGORY_LABELS[resolvedCategory] ?? resolvedCategory}
@@ -295,7 +295,7 @@ export default function DemoPage({ user }: { user: User }) {
             </div>
 
             {result.rulesResult && (
-              <div style={{ marginBottom: '1rem', padding: '1rem', background: '#f9f9f9', borderRadius: '4px' }}>
+              <div style={{ marginBottom: '1rem', padding: '1rem', background: '#1A1A1A', border: '1px solid #2E2E2E', borderRadius: '8px', color: '#EDEDED' }}>
                 <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>
                   Rules Score: {(result.rulesResult.score * 100).toFixed(0)}%
                 </div>
@@ -310,7 +310,7 @@ export default function DemoPage({ user }: { user: User }) {
             )}
 
             {result.geminiAnalysis && (
-              <div style={{ padding: '1rem', background: '#f0f8ff', borderRadius: '4px' }}>
+              <div style={{ padding: '1rem', background: '#1A1A1A', border: '1px solid #2E2E2E', borderRadius: '8px', color: '#EDEDED' }}>
                 <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>
                   Gemini Score: {(result.geminiAnalysis.score * 100).toFixed(0)}%
                   {result.geminiAnalysis.category &&
@@ -320,7 +320,7 @@ export default function DemoPage({ user }: { user: User }) {
                     ` (Impersonating: ${result.geminiAnalysis.impersonatedBrand})`
                   }
                 </div>
-                <div style={{ fontSize: '0.8rem', color: '#555', marginBottom: '0.5rem', fontFamily: 'monospace' }}>
+                <div style={{ fontSize: '0.8rem', color: '#A1A1A1', marginBottom: '0.5rem', fontFamily: 'monospace' }}>
                   {result.tiers?.fast && (
                     <>Tier 1: {result.tiers.fast.model} ({result.tiers.fast.thinkingLevel} thinking) {(result.tiers.fast.score * 100).toFixed(0)}% ({result.tiers.fast.category}) in {result.tiers.fast.latencyMs} ms<br /></>
                   )}
@@ -355,7 +355,7 @@ export default function DemoPage({ user }: { user: User }) {
         <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem' }}>
           Find impersonators of this site
         </h2>
-        <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '1rem' }}>
+        <p style={{ fontSize: '0.875rem', color: '#A1A1A1', marginBottom: '1rem' }}>
           Generate typosquat / lookalike candidates, probe Certificate Transparency logs, resolve live public IPv4 hosts, and judge potential brand impersonators with Gemini Flash &rarr; Argon.
         </p>
 
@@ -363,7 +363,7 @@ export default function DemoPage({ user }: { user: User }) {
           <div>
             <label
               htmlFor="impersonation-url"
-              style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', marginBottom: '0.35rem', color: '#444' }}
+              style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', marginBottom: '0.35rem', color: '#A1A1A1' }}
             >
               Protected Site URL
             </label>
@@ -376,7 +376,7 @@ export default function DemoPage({ user }: { user: User }) {
               style={{
                 width: '100%',
                 padding: '0.75rem',
-                border: '1px solid #e5e5e5',
+                border: '1px solid #2E2E2E',
                 borderRadius: '4px',
               }}
             />
@@ -385,7 +385,7 @@ export default function DemoPage({ user }: { user: User }) {
           <div>
             <label
               htmlFor="impersonation-brand"
-              style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', marginBottom: '0.35rem', color: '#444' }}
+              style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', marginBottom: '0.35rem', color: '#A1A1A1' }}
             >
               Brand Override (optional)
             </label>
@@ -398,7 +398,7 @@ export default function DemoPage({ user }: { user: User }) {
               style={{
                 width: '100%',
                 padding: '0.75rem',
-                border: '1px solid #e5e5e5',
+                border: '1px solid #2E2E2E',
                 borderRadius: '4px',
               }}
             />
@@ -418,8 +418,9 @@ export default function DemoPage({ user }: { user: User }) {
             style={{
               marginTop: '1rem',
               padding: '0.75rem 1rem',
-              background: '#f8d7da',
-              color: '#721c24',
+              background: '#3b202b',
+              color: '#f2a6bc',
+              border: '1px solid #663c50',
               borderRadius: '4px',
               fontSize: '0.875rem',
             }}
@@ -436,8 +437,10 @@ export default function DemoPage({ user }: { user: User }) {
                 flexWrap: 'wrap',
                 gap: '1rem',
                 padding: '0.75rem 1rem',
-                background: '#f9f9f9',
-                borderRadius: '4px',
+                background: '#1A1A1A',
+                border: '1px solid #2E2E2E',
+                borderRadius: '8px',
+                color: '#EDEDED',
                 fontSize: '0.85rem',
                 marginBottom: '1rem',
               }}
@@ -464,26 +467,26 @@ export default function DemoPage({ user }: { user: User }) {
                 Elapsed: <strong>{impersonationReport.elapsedMs} ms</strong>
               </span>
               {impersonationReport.truncated && (
-                <span style={{ color: '#856404', fontWeight: '600' }}>
+                <span style={{ color: '#e9cb8b', fontWeight: '600' }}>
                   Truncated by 30s budget
                 </span>
               )}
               {impersonationReport.ctError && (
-                <span style={{ color: '#666' }}>
+                <span style={{ color: '#A1A1A1' }}>
                   CT note: {impersonationReport.ctError}
                 </span>
               )}
             </div>
 
             {impersonationReport.hits.length === 0 ? (
-              <p style={{ fontSize: '0.9rem', color: '#444', padding: '0.75rem 0' }}>
+              <p style={{ fontSize: '0.9rem', color: '#A1A1A1', padding: '0.75rem 0' }}>
                 No impersonators found in this pass (real scan; absence of hits is a valid result).
               </p>
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                   <thead>
-                    <tr style={{ borderBottom: '2px solid #e5e5e5', textAlign: 'left' }}>
+                    <tr style={{ borderBottom: '2px solid #2E2E2E', textAlign: 'left' }}>
                       <th style={{ padding: '0.5rem' }}>Host</th>
                       <th style={{ padding: '0.5rem' }}>Confidence</th>
                       <th style={{ padding: '0.5rem' }}>Decided By</th>
@@ -494,13 +497,13 @@ export default function DemoPage({ user }: { user: User }) {
                   </thead>
                   <tbody>
                     {impersonationReport.hits.map(hit => (
-                      <tr key={hit.host} style={{ borderBottom: '1px solid #eee' }}>
+                      <tr key={hit.host} style={{ borderBottom: '1px solid #2E2E2E' }}>
                         <td style={{ padding: '0.5rem', fontWeight: '500' }}>
                           <a
                             href={hit.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ color: '#0070f3', textDecoration: 'underline' }}
+                            style={{ color: '#0090FF', textDecoration: 'underline' }}
                           >
                             {hit.host}
                           </a>

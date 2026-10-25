@@ -7,7 +7,7 @@
  */
 
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { generateObject, jsonSchema } from 'ai';
+import { generateText, Output, jsonSchema } from 'ai';
 import {
   getFastModelId,
   getFastThinkingLevel,
@@ -161,11 +161,11 @@ async function callModel(
 ): Promise<RawJudgeSchema> {
   const google = createGoogleGenerativeAI({ apiKey });
   const model = google(modelId);
-  const result = await generateObject({
+  const result = await generateText({
     model,
     abortSignal: AbortSignal.timeout(Math.max(100, timeoutMs)),
     maxRetries: 0,
-    schema: judgeSchema,
+    output: Output.object({ schema: judgeSchema }),
     prompt,
     providerOptions: {
       google: {
@@ -173,7 +173,10 @@ async function callModel(
       },
     },
   });
-  return result.object;
+  if (!result.output) {
+    throw new Error('Judge model returned empty structured output');
+  }
+  return result.output;
 }
 
 export async function judgeCandidate(

@@ -4,10 +4,11 @@
 
 import { jest } from '@jest/globals';
 
-const mockGenerateObject = jest.fn<any>();
+const mockGenerateText = jest.fn<any>();
 
 jest.unstable_mockModule('ai', () => ({
-  generateObject: mockGenerateObject,
+  generateText: mockGenerateText,
+  Output: { object: (opts: unknown) => opts },
   jsonSchema: (s: unknown) => s,
 }));
 
@@ -19,7 +20,7 @@ describe('Multi-policy Gemini category & tiered scan', () => {
 
   beforeEach(() => {
     process.env.GOOGLE_GENERATIVE_AI_API_KEY = 'test';
-    mockGenerateObject.mockReset();
+    mockGenerateText.mockReset();
   });
 
   afterAll(() => {
@@ -31,9 +32,9 @@ describe('Multi-policy Gemini category & tiered scan', () => {
   });
 
   it('(a) hate verdict from Flash (score 0.9, hate_harassment) escalates and Argon category is final; decidedBy === argon; status flagged', async () => {
-    mockGenerateObject
+    mockGenerateText
       .mockResolvedValueOnce({
-        object: {
+        output: {
           score: 0.9,
           category: 'hate_harassment',
           impersonatedBrand: '',
@@ -42,7 +43,7 @@ describe('Multi-policy Gemini category & tiered scan', () => {
         usage: { inputTokens: 300, outputTokens: 80, reasoningTokens: 20 },
       })
       .mockResolvedValueOnce({
-        object: {
+        output: {
           score: 0.95,
           category: 'hate_harassment',
           impersonatedBrand: '',
@@ -53,7 +54,7 @@ describe('Multi-policy Gemini category & tiered scan', () => {
 
     const tiered = await gemini.scanTiered('<html><body>Hate page</body></html>', 'https://northern-covenant.vercel.app', 0.3);
 
-    expect(mockGenerateObject).toHaveBeenCalledTimes(2);
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
     expect(tiered.escalated).toBe(true);
     expect(tiered.final.category).toBe('hate_harassment');
     expect(tiered.final.score).toBe(0.95);
@@ -62,8 +63,8 @@ describe('Multi-policy Gemini category & tiered scan', () => {
     const status = determineStatus(gemini.effectiveScore(0.3, tiered));
     expect(status).toBe('flagged');
 
-    // Verify the prompt sent to generateObject contains the hate policy and counter-speech exemption
-    const callArgs = mockGenerateObject.mock.calls[0][0] as any;
+    // Verify the prompt sent to generateText contains the hate policy and counter-speech exemption
+    const callArgs = mockGenerateText.mock.calls[0][0] as any;
     const promptText = callArgs.messages[0].content.map((p: any) => p.text || '').join(' ');
     expect(promptText).toContain('hate_harassment');
     expect(promptText).toContain('violent_extremism');
@@ -72,8 +73,8 @@ describe('Multi-policy Gemini category & tiered scan', () => {
   });
 
   it('(b) benign counter-speech Flash score 0.05 benign -> no escalation, decidedBy flash, status clean', async () => {
-    mockGenerateObject.mockResolvedValueOnce({
-      object: {
+    mockGenerateText.mockResolvedValueOnce({
+      output: {
         score: 0.05,
         category: 'benign',
         impersonatedBrand: '',
@@ -88,7 +89,7 @@ describe('Multi-policy Gemini category & tiered scan', () => {
       0
     );
 
-    expect(mockGenerateObject).toHaveBeenCalledTimes(1);
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
     expect(tiered.escalated).toBe(false);
     expect(tiered.final.category).toBe('benign');
     expect(tiered.final.score).toBe(0.05);
@@ -99,9 +100,9 @@ describe('Multi-policy Gemini category & tiered scan', () => {
   });
 
   it('(c) violent_extremism category passes through', async () => {
-    mockGenerateObject
+    mockGenerateText
       .mockResolvedValueOnce({
-        object: {
+        output: {
           score: 0.85,
           category: 'violent_extremism',
           impersonatedBrand: '',
@@ -109,7 +110,7 @@ describe('Multi-policy Gemini category & tiered scan', () => {
         },
       })
       .mockResolvedValueOnce({
-        object: {
+        output: {
           score: 0.98,
           category: 'violent_extremism',
           impersonatedBrand: '',
