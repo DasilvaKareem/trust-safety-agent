@@ -51,8 +51,12 @@ GOOGLE_GENERATIVE_AI_API_KEY=<from step 2>
 
 Optional for persistent storage (uses in-memory if omitted):
 ```bash
-KV_REST_API_URL=<Upstash Redis REST URL>
-KV_REST_API_TOKEN=<Upstash Redis token>
+DATABASE_URL=<Neon pooled URL>
+DATABASE_URL_UNPOOLED=<Neon direct URL>
+NEON_AUTH_BASE_URL=<Neon Auth URL>
+NEON_AUTH_COOKIE_SECRET=<random 32+ character secret>
+AUTH_SECRET=<stable random token encryption key>
+CRON_SECRET=<random scheduler secret>
 ```
 
 ### 4. Deploy to Vercel
@@ -116,7 +120,7 @@ npm test
 - Groups similar phishing pages into clusters
 
 ### Storage (`lib/storage/`)
-- Upstash Redis via `@vercel/kv` for production
+- Neon Postgres and Neon Auth for production
 - In-memory fallback for local dev
 - Stores: installations, deployments, clusters
 - Manages review queue
@@ -134,7 +138,7 @@ npm test
 - **Scheduled jobs**: `agent/schedules/rescan.ts` re-scans review and flagged deployments daily at 06:00 UTC and deploys as a Vercel Cron Job.
 - **Webhook hand-off**: the webhook verifies the signature, then calls `POST /eve/v1/session` with `EVE_SCAN_TOKEN` and returns 202. If eve is unreachable or `EVE_HANDOFF=off`, it falls back to scanning inline.
 - **Runtime**: `withEve()` in `next.config.ts` runs eve as a second service in the same Vercel project. It requires Node 24 (`engines.node: 24.x`).
-- **Env**: `EVE_SCAN_TOKEN` (required for the hand-off). `EVE_AGENT_ORIGIN` is optional and defaults to the production URL. Set `KV_REST_API_URL`/`KV_REST_API_TOKEN` so both services share storage.
+- **Env**: `EVE_SCAN_TOKEN` (required for the hand-off). `EVE_AGENT_ORIGIN` is optional and defaults to the production URL. Set `DATABASE_URL` so both services share storage.
 - **Webhook secret**: Vercel signs with HMAC-SHA1 over the raw body. Set `VERCEL_INTEGRATION_WEBHOOK_SECRET` to the integration Client Secret, or to the account-webhook secret.
 
 ### Why Flash then Argon?

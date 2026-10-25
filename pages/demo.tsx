@@ -1,3 +1,5 @@
+import WorkspaceShell from '@/components/WorkspaceShell';
+import type { User } from '@/lib/account/auth';
 /**
  * Demo mode - manually scan URLs and test with sample phishing pages
  */
@@ -76,7 +78,7 @@ const SAMPLE_PAGES = [
   }
 ];
 
-export default function DemoPage() {
+export default function DemoPage({ user }: { user: User }) {
   const [selectedSample, setSelectedSample] = useState(0);
   const [customUrl, setCustomUrl] = useState('');
   const [isScanning, setIsScanning] = useState(false);
@@ -141,12 +143,12 @@ export default function DemoPage() {
   };
 
   return (
-    <div className="container">
+    <WorkspaceShell user={user} title="Try a scan"><div className="workspace-detail">
       <header style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '0.5rem' }}>
           Demo Mode
         </h1>
-        <p style={{ color: '#666' }}>
+        <p style={{ color: 'var(--guard-muted)'  }}>
           Test the Argon Guard scanner with sample pages or custom URLs
         </p>
       </header>
@@ -229,7 +231,7 @@ export default function DemoPage() {
               <span className={`status-badge status-${result.deployment?.status || 'scanning'}`}>
                 {result.deployment?.status || 'scanning'}
               </span>
-              <span style={{ fontSize: '0.875rem', color: '#666' }}>
+              <span style={{ fontSize: '0.875rem', color: 'var(--guard-muted)'  }}>
                 {result.deployment?.url}
               </span>
             </div>
@@ -280,7 +282,7 @@ export default function DemoPage() {
           </div>
 
           {result.deployment?.id && (
-            <p style={{ fontSize: '0.875rem', color: '#666' }}>
+            <p style={{ fontSize: '0.875rem', color: 'var(--guard-muted)'  }}>
               Deployment ID: <code>{result.deployment.id}</code>
             </p>
           )}
@@ -292,13 +294,14 @@ export default function DemoPage() {
           ← Back to Dashboard
         </Link>
       </nav>
-    </div>
+    </div></WorkspaceShell>
   );
 }
 
 export const getServerSideProps: import('next').GetServerSideProps = async ({ req, res }) => {
   const { getUser } = await import('@/lib/account/auth');
   res.setHeader('Cache-Control', 'private, no-store');
-  if (!await getUser(req)) return { redirect: { destination: '/onboarding', permanent: false } };
-  return { props: {} };
+  const user = await getUser(req, res);
+  if (!user) return { redirect: { destination: '/onboarding', permanent: false } };
+  return { props: { user } };
 };

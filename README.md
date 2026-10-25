@@ -136,7 +136,8 @@ Vercel signs the **raw** request body with `hex(HMAC-SHA1(secret, body))` in `x-
 
 - **Framework**: [eve](https://www.npmjs.com/package/eve) - Vercel's durable agent framework
 - **Frontend**: Next.js 16 + React 19
-- **Storage**: Upstash Redis via `@vercel/kv` (in-memory fallback for local dev)
+- **Storage**: Neon Postgres via `@neondatabase/serverless` (legacy Redis and local memory fallback)
+- **Auth**: Neon managed Better Auth, with Google sign-in
 - **Models**: Gemini 3.8 Flash (tier 1) and Gemini 4 Argon with heavy thinking (tier 2) via `@ai-sdk/google`
 - **Deployment**: Vercel (Workflow + Sandbox + Cron)
 
@@ -167,8 +168,10 @@ Required for production:
 - `VERCEL_INTEGRATION_WEBHOOK_SECRET` - Webhook signing secret (the integration Client Secret; falls back to `VERCEL_CLIENT_SECRET`)
 - `EVE_SCAN_TOKEN` - Bearer token that the webhook uses to start eve sessions
 - `GOOGLE_GENERATIVE_AI_API_KEY` - Gemini API key from Google Cloud
-- `KV_REST_API_URL` - Upstash Redis URL (or omit for in-memory)
-- `KV_REST_API_TOKEN` - Upstash Redis token
+- `DATABASE_URL` / `DATABASE_URL_UNPOOLED` - Neon pooled runtime and direct migration connections
+- `NEON_AUTH_BASE_URL` / `NEON_AUTH_COOKIE_SECRET` - Neon Auth endpoint and cookie signing secret
+- `AUTH_SECRET` - Encryption key for Vercel integration tokens
+- `CRON_SECRET` - Scheduled monitoring authorization
 
 For local dev:
 - `NEXT_PUBLIC_APP_URL=http://localhost:3000`
@@ -187,12 +190,19 @@ For local dev:
 2. Create API key
 3. Add to `.env.local` as `GOOGLE_GENERATIVE_AI_API_KEY`
 
-### 5. Set Up Storage (Optional)
-For persistent storage:
-1. Create [Upstash Redis](https://upstash.com/) database
-2. Copy REST API URL and token to `.env.local`
+### 5. Connect Neon through Vercel
 
-For local dev, omit these vars to use in-memory storage (data lost on restart).
+```bash
+vercel link
+vercel integration add neon --name argon-guard-db --plan free_v3 -m region=iad1 -m auth=true
+vercel env pull .env.local --environment development
+npm run db:migrate
+```
+
+Keep the generated secrets in `.env.local` and configure matching values in Vercel.
+`npm run build` applies the idempotent SQL migration before building. It uses the direct
+connection for migrations; runtime queries use the pooled connection. Without Neon or
+legacy Redis, local scanner storage is temporary; production fails closed.
 
 ## Development
 
@@ -209,7 +219,7 @@ No integration needed:
 2. Select a sample phishing page or enter a custom URL
 3. Click "Scan" to run the full pipeline
 
-**Note**: Gemini analysis gracefully skips if no API key is set, returning a mock response.
+**Note**: Gemini analysis gracefully skips if no API key is set, returning an explicitly labeled rules-only result.
 
 ### Run Tests
 ```bash
@@ -247,7 +257,7 @@ npm run build
 1. User installs integration from Vercel marketplace
 2. OAuth callback exchanges code for access token
 3. Webhook registered for `deployment.*` events
-4. Installation stored in KV
+4. Installation stored in Postgres
 5. Future deployments trigger webhook → scan → store → alert
 
 ## File Structure
@@ -255,7 +265,7 @@ npm run build
 ```
 .
 ├── lib/
-│   ├── storage/         # KV/in-memory storage layer
+│   ├── storage/         # Postgres/legacy Redis storage layer
 │   ├── rules/           # Fast rules-based scorer
 │   ├── fingerprint/     # Content hashing + SimHash
 │   └── gemini/          # Gemini vision analysis
@@ -362,20 +372,33 @@ owner are not exposed in customer workspaces.
 
 ### Configure account sign-in
 
-1. Set `NEXT_PUBLIC_APP_URL` to the exact app origin (for local work, `http://localhost:3000`).
-2. Create a Google OAuth **Web application** with redirect URI
-   `${NEXT_PUBLIC_APP_URL}/api/auth/callback`. Enable the consent screen and add test
-   users if the OAuth app is in testing mode. Only `openid email profile` is requested.
-3. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and a random `AUTH_SECRET` of at
-   least 32 characters (`openssl rand -hex 32`). This is separate from the Gemini API key.
-4. Set `KV_REST_API_URL` and `KV_REST_API_TOKEN`. Production account storage fails
-   closed without Redis. Development uses process-local memory and loses data on restart.
-5. Keep `AUTH_SECRET` stable: it encrypts Vercel tokens. A key change requires reconnecting integrations.
+1. Install Neon with **Auth enabled** through Vercel Marketplace and connect it to the project.
+   Vercel injects `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, and `NEON_AUTH_BASE_URL`.
+2. Generate `NEON_AUTH_COOKIE_SECRET` and `AUTH_SECRET` with `openssl rand -hex 32`.
+   Configure them in development, preview and production. Keep `AUTH_SECRET` stable:
+   it encrypts Vercel integration tokens.
+3. Pull development variables with `vercel env pull .env.local`. Use
+   `NEXT_PUBLIC_APP_URL=http://localhost:3000` locally. Production uses Vercel's production
+   URL unless explicitly configured; previews use their own `VERCEL_URL`.
+4. Add your production/custom domain to Neon's trusted domains if it isn't already present.
+   Localhost is enabled by default. Vercel's native integration manages preview domains.
+5. Google works with Neon's shared credentials for development. Before a public launch,
+   add your own Google client ID and secret in **Neon → Auth → OAuth providers**.
+   The Google redirect URI is `${NEON_AUTH_BASE_URL}/callback/google`.
 
-Sessions are opaque, hashed in storage, expire after seven days, and use HttpOnly,
-SameSite=Lax cookies (Secure on HTTPS). Google authorization uses single-use,
-browser-bound state and PKCE. Sign-out revokes the server session. State-changing
-browser requests require the configured origin.
+The Google button uses Neon's SDK. `/api/auth/[...path]` proxies the SDK requests;
+`proxy.ts` finalizes the OAuth verifier at `/auth/complete`, then returns to onboarding.
+The Pages Router adapter delegates cookie handling, session verification and sign-out
+to Neon. Private routes revalidate sessions upstream instead of trusting the cached
+session cookie, require verified email, and check ownership before reading or changing data.
+Mutations require the exact application origin. The app no longer mints its own login sessions.
+
+Neon owns the `neon_auth` schema. The application migration creates only `argon_guard`:
+records and set membership for sites/OAuth state/locks, and indexed deployments for
+scan history and review. Queries stay server-side. Existing Redis installations remain
+supported when `DATABASE_URL` is absent; switching an existing populated Redis installation
+to Neon requires a separate data/user-ID migration. No automatic email-based account linking
+is performed.
 
 ### Connect Vercel
 
@@ -420,3 +443,12 @@ isolation, cross-origin requests, ownership gating, encrypted credentials, and u
 URL rejection alongside the scanner tests. `npm run build` checks all pages and types.
 Live Google/Vercel authorization requires the provider settings above; a successful
 local build does not verify those external credentials or a deployed cron schedule.
+
+
+### Workspace navigation
+
+The dashboard, sample scanner, and clusters share a dark workspace shell. The sidebar
+collapses to an icon rail and remembers that preference on desktop. On mobile it opens
+as a drawer with an overlay, Escape dismissal, and keyboard focus containment. Every
+icon retains an accessible label. The dashboard keeps the onboarding avatar and speech
+bubble, with site controls and scan results underneath.

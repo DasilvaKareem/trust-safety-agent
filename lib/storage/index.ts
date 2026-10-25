@@ -1,6 +1,8 @@
+import { databaseReady } from '@/lib/database';
+import { postgresScans } from '@/lib/database/scans';
 /**
  * Storage interface for the Trust & Safety agent
- * Supports Upstash Redis (via @vercel/kv) with in-memory fallback for local dev
+ * Uses Neon Postgres, with legacy Redis support and in-memory local fallback
  */
 
 export interface Installation {
@@ -69,6 +71,7 @@ async function initKV() {
 
 export const storage = {
   async saveInstallation(installation: Installation): Promise<void> {
+    if (databaseReady()) return postgresScans.saveInstallation(installation);
     await initKV();
     if (kvStore) {
       await kvStore.set(`installation:${installation.id}`, installation);
@@ -81,6 +84,7 @@ export const storage = {
   },
 
   async getInstallation(id: string): Promise<Installation | null> {
+    if (databaseReady()) return postgresScans.getInstallation(id);
     await initKV();
     if (kvStore) {
       return await kvStore.get(`installation:${id}`);
@@ -90,6 +94,7 @@ export const storage = {
   },
 
   async getAllInstallations(): Promise<Installation[]> {
+    if (databaseReady()) return postgresScans.getAllInstallations();
     await initKV();
     if (kvStore) {
       const ids = await kvStore.smembers('installations');
@@ -107,6 +112,7 @@ export const storage = {
   },
 
   async saveDeployment(deployment: Deployment): Promise<void> {
+    if (databaseReady()) return postgresScans.saveDeployment(deployment);
     await initKV();
     if (kvStore) {
       await kvStore.set(`deployment:${deployment.id}`, deployment);
@@ -129,6 +135,7 @@ export const storage = {
   },
 
   async getDeployment(id: string): Promise<Deployment | null> {
+    if (databaseReady()) return postgresScans.getDeployment(id);
     await initKV();
     if (kvStore) {
       return await kvStore.get(`deployment:${id}`);
@@ -138,6 +145,7 @@ export const storage = {
   },
 
   async getOwnerDeployments(ownerId: string, limit = 100): Promise<Deployment[]> {
+    if (databaseReady()) return postgresScans.getOwnerDeployments(ownerId, limit);
     await initKV();
     if (kvStore) {
       const ids = await kvStore.zrange(`owner-deployments:${ownerId}`, 0, limit - 1, { rev: true });
@@ -148,6 +156,7 @@ export const storage = {
   },
 
   async getRecentDeployments(limit: number = 50): Promise<Deployment[]> {
+    if (databaseReady()) return postgresScans.getRecentDeployments(limit);
     await initKV();
     if (kvStore) {
       const ids = await kvStore.zrange('deployments', 0, limit - 1, { rev: true });
@@ -164,6 +173,7 @@ export const storage = {
   },
 
   async getReviewQueue(): Promise<Deployment[]> {
+    if (databaseReady()) return postgresScans.getReviewQueue();
     await initKV();
     if (kvStore) {
       const ids = await kvStore.smembers('review-queue');
@@ -181,6 +191,7 @@ export const storage = {
   },
 
   async updateDeploymentStatus(id: string, status: Deployment['status'], reviewData?: { reviewedBy: string; reviewDecision: 'approved' | 'dismissed' | 'blocked' }): Promise<void> {
+    if (databaseReady()) return postgresScans.updateDeploymentStatus(id, status, reviewData);
     await initKV();
     const deployment = await this.getDeployment(id);
     if (!deployment) return;
@@ -207,6 +218,7 @@ export const storage = {
   },
 
   async saveCluster(cluster: Cluster): Promise<void> {
+    if (databaseReady()) return postgresScans.saveCluster(cluster);
     await initKV();
     if (kvStore) {
       await kvStore.set(`cluster:${cluster.id}`, cluster);
@@ -218,6 +230,7 @@ export const storage = {
   },
 
   async getClusterBySimHash(simHash: string): Promise<Cluster | null> {
+    if (databaseReady()) return postgresScans.getClusterBySimHash(simHash);
     await initKV();
     if (kvStore) {
       const clusterId = await kvStore.get<string>(`simhash:${simHash}`);
@@ -231,6 +244,7 @@ export const storage = {
   },
 
   async getAllClusters(): Promise<Cluster[]> {
+    if (databaseReady()) return postgresScans.getAllClusters();
     await initKV();
     if (kvStore) {
       const keys = [];

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GetServerSideProps } from 'next';
 import Head from 'next/head';
+import { authClient } from '@/lib/auth/client';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import AgentAvatar from '@/components/AgentAvatar';
@@ -42,6 +43,13 @@ export default function Onboarding({ user, googleReady, vercelReady, schedulerRe
     const timer = setInterval(async () => { try { const r = await fetch(`/api/sites/${site.id}`); if (r.ok) { const data = await r.json(); if (active) setSite(data.site); } } catch { /* The scan request supplies the terminal error. */ } }, 1500);
     return () => { active = false; clearInterval(timer); };
   }, [site?.id, site?.scanState]);
+  async function signIn() {
+    setBusy(true); setError('');
+    try {
+      const { error } = await authClient.signIn.social({ provider: 'google', callbackURL: `${window.location.origin}/auth/complete`, errorCallbackURL: `${window.location.origin}/onboarding?error=sign_in` });
+      if (error) throw new Error(error.message || 'Sign-in failed. Please try again.');
+    } catch (e) { setError(e instanceof Error ? e.message : 'Could not sign in. Please try again.'); setBusy(false); }
+  }
   async function connectVercel() {
     setBusy(true); setError('');
     try { const r = await fetch('/api/integration/start', { method: 'POST' }); const data = await r.json(); if (!r.ok) throw new Error(data.error); window.location.assign(data.url); }
@@ -108,7 +116,7 @@ export default function Onboarding({ user, googleReady, vercelReady, schedulerRe
           {step === 0 && <>
             <div className="flow-actions"><button className="flow-primary" onClick={() => tour === 0 ? setTour(1) : setStep(1)}>{tour === 0 ? 'Show me how it works' : 'Let’s get started'} <span>→</span></button>{tour === 0 ? <button className="text-button" onClick={() => setStep(1)}>Skip introduction</button> : <button className="back-icon-button" aria-label="Back" title="Back" onClick={() => setTour(0)}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5m7-7-7 7 7 7" /></svg></button>}</div>
           </>}
-          {step === 1 && <div className="agent-account-actions">{googleReady ? <a className="google-button" href="/api/auth/google"><span>G</span> Continue with Google</a> : <button className="google-button" disabled>Google sign-in unavailable</button>}<button className="back-icon-button" aria-label="Back to introduction" title="Back to introduction" onClick={() => { setStep(0); setError(''); }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5m7-7-7 7 7 7" /></svg></button></div>}
+          {step === 1 && <div className="agent-account-actions">{googleReady ? <button className="google-button" onClick={signIn} disabled={busy}><span>G</span> {busy ? 'Connecting…' : 'Continue with Google'}</button> : <button className="google-button" disabled>Google sign-in unavailable</button>}<button className="back-icon-button" aria-label="Back to introduction" title="Back to introduction" onClick={() => { setStep(0); setError(''); }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5m7-7-7 7 7 7" /></svg></button></div>}
           {step === 2 && <><div className="connection-options"><button className={`connection-option ${path === 'vercel' ? 'selected' : ''}`} aria-pressed={path === 'vercel'} onClick={() => { setPath('vercel'); setError(''); }}><span className="connection-icon">▲</span><strong>Connect Vercel</strong></button><button className={`connection-option ${path === 'website' ? 'selected' : ''}`} aria-pressed={path === 'website'} onClick={() => { setPath('website'); setError(''); }}><span className="connection-icon globe-icon">◎</span><strong>Add any website</strong></button></div>
             {path === 'website' && <form className="connect-form" onSubmit={addSite}><label htmlFor="site-url">Your website URL</label><input id="site-url" name="url" autoComplete="url" inputMode="url" placeholder="https://your-site.com" value={url} onChange={e => setUrl(e.target.value)} required maxLength={2048} /><button className="flow-primary" disabled={busy || !url.trim()}>{busy ? 'Connecting…' : 'Connect website →'}</button></form>}
             {path === 'vercel' && <div className="connect-form">{connections.length > 0 && <><label htmlFor="connection">Existing Vercel connection</label><select id="connection" value={installation} onChange={e => setInstallation(e.target.value)}><option value="">Choose a connection</option>{connections.map(c => <option value={c.id} key={c.id}>{c.name}</option>)}</select></>}{installation ? <form onSubmit={addSite}><label htmlFor="project">Select a project</label><select id="project" value={selectedProject} onChange={e => setSelectedProject(e.target.value)} required><option value="">{busy ? 'Loading…' : 'Choose a project'}</option>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>{nextPage && <button type="button" className="text-button" disabled={busy} onClick={() => loadProjects(installation, nextPage)}>Load more projects</button>}<button className="flow-primary" disabled={busy || !selectedProject}>{busy ? 'Connecting…' : 'Connect project →'}</button></form> : null}<button className={installation ? 'text-button' : 'flow-primary'} disabled={busy || !vercelReady} onClick={connectVercel}>{busy && !installation ? 'Opening Vercel…' : installation ? 'Connect another Vercel account' : 'Authorize with Vercel ↗'}</button></div>}
@@ -127,7 +135,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async ({ req, res }
   const { vercelReady } = await import('@/lib/account/vercel');
   const { storage } = await import('@/lib/storage');
   res.setHeader('Cache-Control', 'private, no-store');
-  const user = await getUser(req);
+  const user = await getUser(req, res);
   const connections = user ? (await storage.getAllInstallations()).filter(i => i.ownerId === user.id && !i.revokedAt).map(i => ({ id: i.id, name: i.teamId || 'Personal Vercel account' })) : [];
   return { props: { user, googleReady: authReady(), vercelReady: vercelReady(), schedulerReady: Boolean(process.env.CRON_SECRET), sites: user ? await listSites(user.id) : [], connections } };
 };

@@ -4,28 +4,30 @@
 
 import { GetServerSideProps } from 'next';
 import Link from 'next/link';
-import { getUser } from '@/lib/account/auth';
+import WorkspaceShell from '@/components/WorkspaceShell';
+import { getUser, type User } from '@/lib/account/auth';
 import { storage, Cluster, Deployment } from '@/lib/storage';
 
 interface ClustersProps {
+  user: User;
   clusters: Array<Cluster & { deployments: Deployment[] }>;
 }
 
-export default function ClustersPage({ clusters }: ClustersProps) {
+export default function ClustersPage({ clusters, user }: ClustersProps) {
   return (
-    <div className="container">
+    <WorkspaceShell user={user} title="Clusters"><div className="workspace-detail">
       <header style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '0.5rem' }}>
           Phishing Clusters
         </h1>
-        <p style={{ color: '#666' }}>
+        <p style={{ color: 'var(--guard-muted)'  }}>
           Grouped deployments sharing similar content fingerprints
         </p>
       </header>
 
       {clusters.length === 0 ? (
         <div className="card">
-          <p style={{ color: '#666', textAlign: 'center' }}>
+          <p style={{ color: 'var(--guard-muted)' , textAlign: 'center' }}>
             No clusters found yet.
           </p>
         </div>
@@ -36,7 +38,7 @@ export default function ClustersPage({ clusters }: ClustersProps) {
               <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem' }}>
                 {cluster.id}
               </h2>
-              <div style={{ display: 'flex', gap: '2rem', fontSize: '0.875rem', color: '#666' }}>
+              <div style={{ display: 'flex', gap: '2rem', fontSize: '0.875rem', color: 'var(--guard-muted)'  }}>
                 <span>Deployments: {cluster.count}</span>
                 <span>First seen: {new Date(cluster.firstSeen).toLocaleString()}</span>
                 <span>Last seen: {new Date(cluster.lastSeen).toLocaleString()}</span>
@@ -68,11 +70,11 @@ export default function ClustersPage({ clusters }: ClustersProps) {
                       href={deployment.url} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      style={{ color: '#0070f3', fontSize: '0.875rem' }}
+                      style={{ color: 'var(--guard-accent)' , fontSize: '0.875rem' }}
                     >
                       {deployment.url}
                     </a>
-                    <div style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.25rem' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--guard-muted)' , marginTop: '0.25rem' }}>
                       Rules: {(deployment.rulesScore * 100).toFixed(0)}%
                       {deployment.geminiScore !== undefined && 
                         ` • Gemini: ${(deployment.geminiScore * 100).toFixed(0)}%`
@@ -94,13 +96,13 @@ export default function ClustersPage({ clusters }: ClustersProps) {
           ← Back to Dashboard
         </Link>
       </nav>
-    </div>
+    </div></WorkspaceShell>
   );
 }
 
 export const getServerSideProps: GetServerSideProps<ClustersProps> = async ({ req, res }) => {
   res.setHeader('Cache-Control', 'private, no-store');
-  const user = await getUser(req);
+  const user = await getUser(req, res);
   if (!user) return { redirect: { destination: '/onboarding', permanent: false } };
   const records = await storage.getOwnerDeployments(user.id);
   const grouped = new Map<string, Deployment[]>();
@@ -113,5 +115,5 @@ export const getServerSideProps: GetServerSideProps<ClustersProps> = async ({ re
     simHash: deployments[0].simHash || '', firstSeen: Math.min(...deployments.map(d => d.createdAt)), lastSeen: Math.max(...deployments.map(d => d.createdAt)),
   }));
   clusters.sort((a, b) => b.lastSeen - a.lastSeen);
-  return { props: { clusters } };
+  return { props: { user, clusters } };
 };

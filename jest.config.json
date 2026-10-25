@@ -18,5 +18,8 @@
   "modulePathIgnorePatterns": [
     "<rootDir>/.eve/",
     "<rootDir>/.next/"
+  ],
+  "testMatch": [
+    "**/__tests__/**/*.test.ts"
   ]
 }

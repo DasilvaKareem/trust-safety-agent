@@ -1,3 +1,4 @@
+import { session } from './helpers/neon';
 import { jest } from '@jest/globals';
 import { Readable } from 'node:stream';
 import { createHmac } from 'node:crypto';
@@ -12,8 +13,6 @@ jest.unstable_mockModule('@/lib/account/vercel', () => ({ vercelApi, vercelReady
 const { accountStore } = await import('@/lib/account/store');
 const { createSite, getSite, saveSite, runSiteScan, verifySite } = await import('@/lib/account/sites');
 const { storage } = await import('@/lib/storage');
-const { createSession, beginOAuth, getUser } = await import('@/lib/account/auth');
-const { default: googleCallback } = await import('@/pages/api/auth/callback');
 const { default: projectsHandler } = await import('@/pages/api/integration/projects');
 const { default: webhook } = await import('@/pages/api/webhooks/vercel');
 const { default: monitor } = await import('@/pages/api/sites/monitor');
@@ -22,10 +21,6 @@ function mock(method = 'GET', cookie = '', body = {}, query = {}) {
   const req: any = { method, headers: { cookie, origin: 'http://localhost:3000' }, body, query };
   const res: any = { statusCode: 200, body: null, location: '', setHeader(k: string, v: any) { headers[k] = v; }, getHeader(k: string) { return headers[k]; }, status(code: number) { this.statusCode = code; return this; }, json(body: any) { this.body = body; return this; }, end() { return this; }, redirect(location: string) { this.location = location; return this; } };
   return { req: req as NextApiRequest, res: res as NextApiResponse & { body: any; location: string }, headers };
-}
-async function session(id: string) {
-  await accountStore.set(`user:${id}`, { id, name: id, email: `${id}@example.com`, createdAt: Date.now() });
-  const { res, headers } = mock(); await createSession(res, id); return headers['Set-Cookie'][0].split(';')[0];
 }
 async function signedEvent(event: unknown) {
   const raw = JSON.stringify(event); const req: any = Readable.from([Buffer.from(raw)]);
@@ -64,16 +59,6 @@ describe('First scan and monitoring lifecycle', () => {
 });
 
 describe('Provider boundaries (mock provider responses)', () => {
-  it('completes Google code exchange, creates a session, and prevents callback replay', async () => {
-    const start = mock(); const { state } = await beginOAuth(start.res, 'google'); const cookie = start.headers['Set-Cookie'][0].split(';')[0];
-    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'google-test-token' }), { status: 200 })).mockResolvedValueOnce(new Response(JSON.stringify({ sub: 'test-google-user', email: 'google@example.com', email_verified: true, given_name: 'Alex' }), { status: 200 }));
-    try {
-      const callback = mock('GET', cookie, {}, { state, code: 'google-test-code' }); await googleCallback(callback.req, callback.res);
-      expect(callback.res.location).toBe('/onboarding?step=connect'); const sessionCookie = callback.headers['Set-Cookie'].findLast((s: string) => s.startsWith('ts_session=')).split(';')[0];
-      const signedIn = mock('GET', sessionCookie); expect((await getUser(signedIn.req))?.id).toBe('google:test-google-user');
-      await googleCallback(callback.req, callback.res); expect(callback.res.location).toBe('/onboarding?error=sign_in'); expect(fetchMock).toHaveBeenCalledTimes(2);
-    } finally { fetchMock.mockRestore(); }
-  });
   it('blocks project listing from another account and uses an authorized deployment URL', async () => {
     await storage.saveInstallation({ id: 'connection-a', ownerId: 'vercel-owner', teamId: 'team-a', userId: 'user-a', accessToken: 'mock-encrypted', configurationId: 'config-a', createdAt: Date.now() });
     const outsider = await session('vercel-outsider'); const foreign = mock('GET', outsider, {}, { installation: 'connection-a' }); await projectsHandler(foreign.req, foreign.res); expect(foreign.res.statusCode).toBe(404); expect(vercelApi).not.toHaveBeenCalled();

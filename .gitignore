@@ -15,3 +15,9 @@ coverage/
 .eve/
 .output/
 bench/data/
+.env*
+!.env.example
+
+# Local integration agent tooling
+.agents/
+skills-lock.json

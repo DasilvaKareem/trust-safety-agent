@@ -6,7 +6,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'GET') return res.status(405).end();
   try {
     if (!vercelReady()) return res.redirect('/onboarding?error=vercel_setup');
-    const user = await getUser(req); const flow = await consumeOAuth(req, res, 'vercel');
+    const user = await getUser(req, res); const flow = await consumeOAuth(req, res, 'vercel');
     if (!user || flow.userId !== user.id) throw new Error('Session expired');
     const { code, configurationId } = req.query;
     if (typeof code !== 'string' || typeof configurationId !== 'string') throw new Error('Missing authorization');

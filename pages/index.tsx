@@ -4,6 +4,7 @@
 
 import { GetServerSideProps } from 'next';
 import Link from 'next/link';
+import WorkspaceShell from '@/components/WorkspaceShell';
 import AgentAvatar from '@/components/AgentAvatar';
 import ConnectedSites from '@/components/ConnectedSites';
 import { getUser, type User } from '@/lib/account/auth';
@@ -25,96 +26,40 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ recentDeployments, reviewQueue, stats, user, sites }: DashboardProps) {
-  return (
-    <div className="container">
-      <nav className="workspace-nav"><Link className="flow-brand" href="/"><span className="brand-mark">✦</span> Argon Guard</Link><div><span>{user.name}’s workspace</span><form method="post" action="/api/auth/logout"><button className="text-button">Sign out</button></form></div></nav>
-      <header style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '0.5rem' }}>
-          Argon Guard Dashboard
-        </h1>
-        <p style={{ color: '#666' }}>
-          Vercel deployment phishing and abuse detection
-        </p>
-      </header>
-
-      {/* Stats Overview */}
-      <AgentAvatar message={reviewQueue.length > 0 ? `${reviewQueue.length} deployment${reviewQueue.length === 1 ? '' : 's'} waiting for your review.` : 'Ready to inspect your next deployment.'} state={reviewQueue.length > 0 ? 'suspicious' : 'idle'} />
-      <div className="grid grid-2" style={{ marginBottom: '2rem' }}>
-        <div className="card metric">
-          <div className="metric-value">{stats.total}</div>
-          <div className="metric-label">Recent Scans</div>
-        </div>
-        <div className="card metric">
-          <div className="metric-value">{stats.clean}</div>
-          <div className="metric-label">Clean</div>
-        </div>
-        <div className="card metric">
-          <div className="metric-value">{stats.review}</div>
-          <div className="metric-label">Pending Review</div>
-        </div>
-        <div className="card metric">
-          <div className="metric-value">{stats.flagged}</div>
-          <div className="metric-label">Flagged</div>
-        </div>
-      </div>
-
-      <ConnectedSites initialSites={sites} />
-
-      {/* Review Queue */}
-      {reviewQueue.length > 0 && (
-        <section style={{ marginBottom: '2rem' }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1rem' }}>
-            Review Queue ({reviewQueue.length})
-          </h2>
-          {reviewQueue.map(deployment => (
-            <DeploymentCard key={deployment.id} deployment={deployment} showReviewButtons />
-          ))}
-        </section>
-      )}
-
-      {/* Recent Deployments */}
-      <section>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1rem' }}>
-          Recent Deployments
-        </h2>
-        {recentDeployments.length === 0 ? (
-          <div className="card">
-            <p style={{ color: '#666', textAlign: 'center' }}>
-              No deployments yet. Try the <Link href="/demo" style={{ color: '#0070f3' }}>demo mode</Link>.
-            </p>
-          </div>
-        ) : (
-          recentDeployments.map(deployment => (
-            <DeploymentCard key={deployment.id} deployment={deployment} />
-          ))
-        )}
-      </section>
-
-      {/* Navigation */}
-      <nav style={{ marginTop: '2rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-        <Link href="/demo" className="btn btn-primary">
-          Demo Mode
-        </Link>
-        <Link href="/clusters" className="btn btn-secondary">
-          View Clusters ({stats.clusters})
-        </Link>
-      </nav>
-    </div>
-  );
+  const firstName = user.name.split(' ')[0];
+  const message = reviewQueue.length
+    ? `Hi, ${firstName}. ${reviewQueue.length} scan${reviewQueue.length === 1 ? ' needs' : 's need'} a closer look. I’ve gathered the signals below so you can decide what to do next.`
+    : sites.length
+      ? `Hi, ${firstName}. Your sites are all here. Run a fresh scan whenever you’re ready, or verify ownership so I can keep checking for you.`
+      : `Hi, ${firstName}. Welcome to your workspace. Connect your first site and I’ll help you look for phishing, impersonation, and suspicious content.`;
+  return <WorkspaceShell user={user}>
+    <h1 className="sr-only">Argon Guard overview</h1>
+    <section className="dashboard-companion welcome-guide" aria-label="A message from Argon Guard">
+      <AgentAvatar variant="conversation" message={message} state={reviewQueue.length ? 'suspicious' : 'idle'} />
+    </section>
+    <section className="dashboard-metrics" aria-label="Recent scan summary">
+      {[['Recent scans', stats.total], ['Clean', stats.clean], ['Needs review', stats.review], ['Flagged', stats.flagged]].map(([label, value], i) => <div className={`dashboard-metric metric-${i}`} key={label}><span className="metric-label"><i />{label}</span><strong>{value}</strong></div>)}
+    </section>
+    <ConnectedSites initialSites={sites} />
+    {reviewQueue.length > 0 && <section id="review" className="dashboard-section"><div className="section-heading"><h2>Needs your attention <span>{reviewQueue.length}</span></h2></div>{reviewQueue.map(deployment => <DeploymentCard key={deployment.id} deployment={deployment} showReviewButtons />)}</section>}
+    <section id="activity" className="dashboard-section"><div className="section-heading"><div><span className="section-eyebrow">ACTIVITY</span><h2>Recent scans</h2></div><Link className="text-button" href="/demo">Try a sample ↗</Link></div>
+      {recentDeployments.length === 0 ? <div className="guard-empty"><span>✦</span><h3>A fresh start.</h3><p>Your scan history will appear here after your first check.</p><Link className="text-button" href="/onboarding?step=connect">Connect your first site →</Link></div> : recentDeployments.map(deployment => <DeploymentCard key={deployment.id} deployment={deployment} />)}
+    </section>
+  </WorkspaceShell>;
 }
 
 function DeploymentCard({ deployment, showReviewButtons }: { deployment: Deployment; showReviewButtons?: boolean }) {
   const statusClass = `status-${deployment.status}`;
   
   return (
-    <div className="card">
+    <div className="card deployment-card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
             <span className={`status-badge ${statusClass}`}>
               {deployment.status}
             </span>
-            <code style={{ fontSize: '0.875rem', color: '#666' }}>
+            <code style={{ fontSize: '0.875rem', color: 'var(--guard-muted)'  }}>
               {deployment.id.substring(0, 12)}...
             </code>
           </div>
@@ -122,12 +67,12 @@ function DeploymentCard({ deployment, showReviewButtons }: { deployment: Deploym
             href={deployment.url} 
             target="_blank" 
             rel="noopener noreferrer"
-            style={{ color: '#0070f3', wordBreak: 'break-all' }}
+            style={{ color: 'var(--guard-accent)' , wordBreak: 'break-all' }}
           >
             {deployment.url}
           </a>
         </div>
-        <div style={{ fontSize: '0.875rem', color: '#999', whiteSpace: 'nowrap', marginLeft: '1rem' }}>
+        <div style={{ fontSize: '0.875rem', color: 'var(--guard-muted)' , whiteSpace: 'normal', marginLeft: '1rem' }}>
           {new Date(deployment.createdAt).toLocaleString()}
         </div>
       </div>
@@ -137,7 +82,7 @@ function DeploymentCard({ deployment, showReviewButtons }: { deployment: Deploym
           Rules Score: {(deployment.rulesScore * 100).toFixed(0)}%
         </div>
         {deployment.rulesReasons.length > 0 && (
-          <ul style={{ fontSize: '0.875rem', paddingLeft: '1.5rem', color: '#666' }}>
+          <ul style={{ fontSize: '0.875rem', paddingLeft: '1.5rem', color: 'var(--guard-muted)'  }}>
             {deployment.rulesReasons.map((reason, i) => (
               <li key={i}>{reason}</li>
             ))}
@@ -152,7 +97,7 @@ function DeploymentCard({ deployment, showReviewButtons }: { deployment: Deploym
             {deployment.geminiImpersonatedBrand && ` (${deployment.geminiImpersonatedBrand})`}
           </div>
           {deployment.geminiReasons && deployment.geminiReasons.length > 0 && (
-            <ul style={{ fontSize: '0.875rem', paddingLeft: '1.5rem', color: '#666' }}>
+            <ul style={{ fontSize: '0.875rem', paddingLeft: '1.5rem', color: 'var(--guard-muted)'  }}>
               {deployment.geminiReasons.map((reason, i) => (
                 <li key={i}>{reason}</li>
               ))}
@@ -162,8 +107,8 @@ function DeploymentCard({ deployment, showReviewButtons }: { deployment: Deploym
       )}
 
       {deployment.clusterId && (
-        <div style={{ fontSize: '0.875rem', color: '#666', marginBottom: '1rem' }}>
-          Cluster: <Link href={`/clusters#${deployment.clusterId}`} style={{ color: '#0070f3' }}>
+        <div style={{ fontSize: '0.875rem', color: 'var(--guard-muted)' , marginBottom: '1rem' }}>
+          Cluster: <Link href={`/clusters#${deployment.clusterId}`} style={{ color: 'var(--guard-accent)'  }}>
             {deployment.clusterId}
           </Link>
         </div>
@@ -193,7 +138,7 @@ function DeploymentCard({ deployment, showReviewButtons }: { deployment: Deploym
       )}
 
       {deployment.reviewDecision && (
-        <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '1rem' }}>
+        <div style={{ fontSize: '0.875rem', color: 'var(--guard-muted)' , marginTop: '1rem' }}>
           Reviewed: {deployment.reviewDecision} by {deployment.reviewedBy} 
           {deployment.reviewedAt && ` on ${new Date(deployment.reviewedAt).toLocaleString()}`}
         </div>
@@ -218,7 +163,7 @@ async function handleReview(deploymentId: string, decision: 'approved' | 'dismis
 
 export const getServerSideProps: GetServerSideProps<DashboardProps> = async ({ req, res }) => {
   res.setHeader('Cache-Control', 'private, no-store');
-  const user = await getUser(req);
+  const user = await getUser(req, res);
   if (!user) return { redirect: { destination: '/onboarding', permanent: false } };
   const recentDeployments = await storage.getOwnerDeployments(user.id);
   const reviewQueue = recentDeployments.filter(d => d.status === 'review' && !d.reviewDecision);

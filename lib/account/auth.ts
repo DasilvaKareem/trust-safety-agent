@@ -1,15 +1,18 @@
 import { createHash, randomBytes, timingSafeEqual, createCipheriv, createDecipheriv } from 'node:crypto';
-import type { IncomingMessage } from 'node:http';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { accountStore, durableStorageReady } from './store';
+import { neonAuthReady } from '@/lib/auth/config';
+import { neonAuth } from '@/lib/auth/neon';
 export type User = { id: string; email: string; name: string; createdAt: number };
-const SESSION_COOKIE = 'ts_session';
 export function appOrigin() {
-  const origin = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000');
+  const origin = process.env.VERCEL_ENV === 'preview' && process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000');
   return new URL(origin).origin;
 }
 export function authReady() {
-  return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && (process.env.AUTH_SECRET?.length || 0) >= 32 && (process.env.NODE_ENV !== 'production' || durableStorageReady()));
+  return neonAuthReady() && (process.env.NODE_ENV !== 'production' || durableStorageReady());
 }
 export function digest(value: string) { return createHash('sha256').update(value).digest('hex'); }
 export function equal(a: unknown, b: unknown) {
@@ -26,38 +29,37 @@ export function cookie(res: NextApiResponse, name: string, value: string, maxAge
   const previous = res.getHeader('Set-Cookie');
   res.setHeader('Set-Cookie', [...(Array.isArray(previous) ? previous.map(String) : previous ? [String(previous)] : []), `${name}=${value}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${maxAge}${appOrigin().startsWith('https:') ? '; Secure' : ''}`]);
 }
-export async function getUser(req: IncomingMessage): Promise<User | null> {
-  const token = cookies(req)[SESSION_COOKIE];
-  if (!token || !/^[a-f0-9]{64}$/.test(token)) return null;
-  const session = await accountStore.get<{ userId: string }>(`session:${digest(token)}`);
-  return session ? accountStore.get<User>(`user:${session.userId}`) : null;
-}
-export async function createSession(res: NextApiResponse, userId: string) {
-  const token = randomBytes(32).toString('hex');
-  await accountStore.set(`session:${digest(token)}`, { userId }, 60 * 60 * 24 * 7);
-  cookie(res, SESSION_COOKIE, token, 60 * 60 * 24 * 7);
+export async function getUser(req: IncomingMessage, res?: ServerResponse): Promise<User | null> {
+  if (!neonAuthReady()) return null;
+  const { data, error } = await neonAuth(req, res).getSession({ query: { disableCookieCache: 'true' } });
+  if (error) throw new Error('Could not verify your session. Please try again.');
+  if (!data?.user || !data.session || !data.user.emailVerified) return null;
+  const profile = data.user;
+  return { id: profile.id, email: profile.email, name: profile.name || 'there', createdAt: new Date(profile.createdAt).getTime() };
 }
 export async function endSession(req: IncomingMessage, res: NextApiResponse) {
-  const token = cookies(req)[SESSION_COOKIE];
-  if (token) await accountStore.remove(`session:${digest(token)}`);
-  cookie(res, SESSION_COOKIE, '', 0);
+  if (neonAuthReady()) {
+    const { error } = await neonAuth(req, res).signOut();
+    if (error) throw new Error('Could not sign out. Please try again.');
+  }
+  cookie(res, 'ts_session', '', 0);
 }
 export function sameOrigin(req: IncomingMessage) { return req.headers.origin === appOrigin(); }
 export async function requireUser(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader('Cache-Control', 'private, no-store');
   if (req.method !== 'GET' && !sameOrigin(req)) { res.status(403).json({ error: 'Please submit this request from the app.' }); return null; }
-  const user = await getUser(req);
+  const user = await getUser(req, res);
   if (!user) { res.status(401).json({ error: 'Sign in to continue.' }); return null; }
   return user;
 }
-export async function beginOAuth(res: NextApiResponse, provider: 'google' | 'vercel', userId?: string) {
+export async function beginOAuth(res: NextApiResponse, provider: 'vercel', userId?: string) {
   const state = randomBytes(32).toString('hex');
   const verifier = randomBytes(32).toString('base64url');
   await accountStore.set(`oauth:${digest(state)}`, { provider, userId: userId || null, verifier }, 600);
   cookie(res, `ts_${provider}_state`, state, 600);
   return { state, verifier };
 }
-export async function consumeOAuth(req: NextApiRequest, res: NextApiResponse, provider: 'google' | 'vercel') {
+export async function consumeOAuth(req: NextApiRequest, res: NextApiResponse, provider: 'vercel') {
   const state = req.query.state;
   if (!equal(state, cookies(req)[`ts_${provider}_state`])) throw new Error('The sign-in link expired. Please try again.');
   cookie(res, `ts_${provider}_state`, '', 0);

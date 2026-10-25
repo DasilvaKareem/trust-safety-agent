@@ -1,11 +1,12 @@
+import { session } from './helpers/neon';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { accountStore } from '@/lib/account/store';
-import { createSession, getUser, endSession, beginOAuth, consumeOAuth, encryptToken, decryptToken } from '@/lib/account/auth';
-import { createSite, saveSite } from '@/lib/account/sites';
+const { getUser, endSession, beginOAuth, consumeOAuth, encryptToken, decryptToken } = await import('@/lib/account/auth');
+const { createSite, saveSite } = await import('@/lib/account/sites');
 import { isPublicIPv4, normalizeSiteUrl } from '@/lib/account/public-page';
-import sitesHandler from '@/pages/api/sites/index';
-import siteHandler from '@/pages/api/sites/[id]';
-import reviewHandler from '@/pages/api/review';
+const { default: sitesHandler } = await import('@/pages/api/sites/index');
+const { default: siteHandler } = await import('@/pages/api/sites/[id]');
+const { default: reviewHandler } = await import('@/pages/api/review');
 import { storage } from '@/lib/storage';
 
 function requestResponse(method = 'GET', cookie = '', body: unknown = {}, query: Record<string, string> = {}) {
@@ -14,12 +15,6 @@ function requestResponse(method = 'GET', cookie = '', body: unknown = {}, query:
   const res: any = { statusCode: 200, body: null, setHeader: (k: string, v: unknown) => { headers[k] = v; }, getHeader: (k: string) => headers[k], status(code: number) { this.statusCode = code; return this; }, json(data: unknown) { this.body = data; return this; }, end() { return this; } };
   return { req, res: res as NextApiResponse & { statusCode: number; body: any }, headers };
 }
-async function session(id: string) {
-  await accountStore.set(`user:${id}`, { id, name: id, email: `${id}@example.com`, createdAt: Date.now() });
-  const { res, headers } = requestResponse(); await createSession(res, id);
-  return (headers['Set-Cookie'] as string[])[0].split(';')[0];
-}
-
 describe('Account boundaries', () => {
   const oldOrigin = process.env.NEXT_PUBLIC_APP_URL;
   beforeAll(() => { process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000'; });
@@ -62,13 +57,13 @@ describe('Account boundaries', () => {
     expect((await storage.getOwnerDeployments('review-owner')).every(d => d.ownerId === 'review-owner')).toBe(true);
   });
   it('only consumes an OAuth transaction once and binds it to a browser', async () => {
-    const start = requestResponse(); const { state } = await beginOAuth(start.res, 'google');
+    const start = requestResponse(); const { state } = await beginOAuth(start.res, 'vercel');
     const cookie = (start.headers['Set-Cookie'] as string[])[0].split(';')[0];
-    const wrong = requestResponse('GET', 'ts_google_state=wrong', {}, { state });
-    await expect(consumeOAuth(wrong.req, wrong.res, 'google')).rejects.toThrow();
+    const wrong = requestResponse('GET', 'ts_vercel_state=wrong', {}, { state });
+    await expect(consumeOAuth(wrong.req, wrong.res, 'vercel')).rejects.toThrow();
     const correct = requestResponse('GET', cookie, {}, { state });
-    await expect(consumeOAuth(correct.req, correct.res, 'google')).resolves.toHaveProperty('provider', 'google');
-    await expect(consumeOAuth(correct.req, correct.res, 'google')).rejects.toThrow();
+    await expect(consumeOAuth(correct.req, correct.res, 'vercel')).resolves.toHaveProperty('provider', 'vercel');
+    await expect(consumeOAuth(correct.req, correct.res, 'vercel')).rejects.toThrow();
   });
   it('expires temporary records and atomically claims work', async () => {
     expect(await accountStore.claim('claim-test', 30)).toBe(true); expect(await accountStore.claim('claim-test', 30)).toBe(false);

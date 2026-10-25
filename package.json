@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run db:migrate && next build",
     "start": "next start",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
-    "bench": "tsx scripts/bench.ts"
+    "bench": "tsx scripts/bench.ts",
+    "db:migrate": "tsx scripts/migrate.ts"
   },
   "repository": {
     "type": "git",
@@ -30,6 +31,8 @@
   "homepage": "https://github.com/DasilvaKareem/trust-safety-agent#readme",
   "dependencies": {
     "@ai-sdk/google": "^4.0.105",
+    "@neondatabase/auth": "0.7.0-beta",
+    "@neondatabase/serverless": "^1.2.0",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -51,5 +54,13 @@
   },
   "engines": {
     "node": "24.x"
+  },
+  "overrides": {
+    "@neondatabase/auth": {
+      "zod": "4.6.7"
+    },
+    "eve": {
+      "undici": "8.12.2"
+    }
   }
 }
