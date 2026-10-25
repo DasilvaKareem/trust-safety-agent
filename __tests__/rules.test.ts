@@ -127,6 +127,19 @@ describe('Rules Scoring', () => {
     });
   });
 
+  describe('typosquat detection', () => {
+    it('does not flag ordinary domains', () => {
+      const r = computeRulesScore('<html><body>Docs</body></html>', 'https://docs.nebula-db.example.com/getting-started');
+      expect(r.flags.isTyposquat).toBeUndefined();
+      expect(r.score).toBe(0);
+    });
+
+    it('flags rn-for-m lookalikes', () => {
+      const r = computeRulesScore('<html></html>', 'https://rnicrosoft-login.vercel.app');
+      expect(r.flags.isTyposquat).toBe(true);
+    });
+  });
+
   describe('determineStatus', () => {
     it('should return clean for low scores', () => {
       expect(determineStatus(0.1)).toBe('clean');

@@ -69,11 +69,13 @@ function isTyposquatDomain(domain: string): boolean {
   const lowerDomain = domain.toLowerCase();
   
   // Common typosquat patterns
+  // Note: domain is lowercased, so homoglyph capital-I variants (googIe) appear as "googie".
+  // (Previously this list contained /paypa|/, whose empty alternation matched every domain.)
   const patterns = [
-    /paypa1/, /paypa|/, /paypa1l/, /paypai/,
-    /g00gle/, /googIe/, /g0ogle/,
-    /micr0soft/, /microsfot/, /rnicr0soft/,
-    /app1e/, /appl3/, /appIe/,
+    /paypa1/, /paypa1l/, /paypai/,
+    /g00gle/, /googie/, /g0ogle/,
+    /micr0soft/, /microsfot/, /rnicr0soft/, /rnicrosoft/,
+    /app1e/, /appl3/, /appie/,
     /amaz0n/, /arnazon/,
     /faceb00k/, /facebok/, /facebo0k/,
   ];
