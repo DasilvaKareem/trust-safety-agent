@@ -5,6 +5,8 @@ import { postgresScans } from '@/lib/database/scans';
  * Uses Neon Postgres, with legacy Redis support and in-memory local fallback
  */
 
+import type { ContentCategory } from '@/lib/gemini';
+
 export interface Installation {
   ownerId?: string;
   revokedAt?: number;
@@ -31,6 +33,7 @@ export interface Deployment {
   geminiScore?: number;
   geminiReasons?: string[];
   geminiImpersonatedBrand?: string;
+  category?: ContentCategory;
   status: 'pending' | 'scanning' | 'clean' | 'review' | 'flagged';
   contentHash?: string;
   simHash?: string;

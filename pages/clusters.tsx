@@ -79,6 +79,7 @@ export default function ClustersPage({ clusters, user }: ClustersProps) {
                       {deployment.geminiScore !== undefined && 
                         ` • Gemini: ${(deployment.geminiScore * 100).toFixed(0)}%`
                       }
+                      {deployment.category && ` • ${deployment.category}`}
                     </div>
                   </div>
                   <span className={`status-badge status-${deployment.status}`}>

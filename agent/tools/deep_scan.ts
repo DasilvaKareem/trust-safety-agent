@@ -22,7 +22,7 @@ import type { RulesResult } from "../../lib/rules";
  */
 export default defineWorkflowTool({
   description:
-    "Durably scan one Vercel deployment for phishing: fetch, rules, Gemini 3.8 Flash, escalate to Gemini 4 Argon when risky, then store the verdict.",
+    "Durably scan one Vercel deployment for phishing, scams, hate and violent extremism: fetch, rules, Gemini 3.8 Flash, escalate to Gemini 4 Argon when risky, then store the verdict.",
   inputSchema: z.object({
     deploymentId: z.string().min(1),
     siteId: z.string().optional(),

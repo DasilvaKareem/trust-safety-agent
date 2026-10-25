@@ -1,37 +1,64 @@
 /**
- * Gemini vision-based analysis for brand impersonation and credential harvesting
+ * Gemini multi-policy Trust & Safety analysis for phishing, scams, hate & harassment, and violent extremism
  */
 
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateObject, jsonSchema } from 'ai';
 
+export const CONTENT_CATEGORIES = [
+  'phishing',
+  'scam',
+  'hate_harassment',
+  'violent_extremism',
+  'benign',
+] as const;
+
+export type ContentCategory = (typeof CONTENT_CATEGORIES)[number];
+
 export interface GeminiAnalysis {
-  score: number; // 0-1
+  score: number; // 0-1: likelihood this page is abusive under ANY policy below
+  category: ContentCategory;
   impersonatedBrand?: string;
   reasons: string[];
 }
 
-const ANALYSIS_PROMPT = `You are a Trust & Safety analyst specialized in detecting phishing pages and brand impersonation.
+export const ANALYSIS_PROMPT = `You are a Trust & Safety analyst evaluating webpages deployed by users of a cloud hosting and AI-builder platform.
 
-Analyze the provided webpage content and screenshot (if available) to determine if it's attempting to:
-1. Impersonate a legitimate brand or service
-2. Harvest credentials (usernames, passwords, payment info)
-3. Conduct phishing or scam activities
+Analyze the provided webpage content and screenshot (if available) under our multi-policy Trust & Safety rules to determine if the page is abusive under ANY policy below:
+
+1. phishing:
+   - Brand impersonation (visual or textual similarity to known brands on an unrelated or typosquat domain)
+   - Credential, payment card, SSN, or crypto seed-phrase / private-key harvesting
+   - Urgency or account-threat language ("account suspended", "verify now", "unpaid fee")
+   - Mismatch between branding and domain, or off-site form submission
+   - A legitimate banking site scores 0. A PayPal clone on "paypa1.com" scores 0.9+.
+
+2. scam:
+   - Fake giveaways, investment or crypto-doubling schemes, fake e-commerce stores, advance-fee fraud, or tech-support scams (even without a login form).
+
+3. hate_harassment:
+   - Content that attacks, dehumanizes, or incites hatred, exclusion, or discrimination against people based on protected attributes (religion, ethnicity, race, national origin, sexual orientation, gender identity, disability, etc.).
+   - Examples: antisemitic conspiracy claims (e.g. claiming Jews secretly control or poison banks, media, or society), calling a protected group vermin, parasites, rats, subhuman, or a disease, calls for exclusion or expulsion, or targeted harassment and doxxing of individuals.
+
+4. violent_extremism:
+   - Glorification, recruitment, or support for violent extremist groups or ideologies.
+   - Examples: praise or "sainthood" of mass shooters or terror attacks, extremist manifestos, calls to violence, "race war" militia recruitment, or instructions for attacks.
+
+5. MUST NOT FLAG (score <= 0.1, category "benign"):
+   - News reporting on hate crimes, terrorism, or extremism
+   - History and educational material (e.g. Holocaust museum exhibits, history of the KKK)
+   - Counter-speech, debunking, and anti-hate advocacy
+   - Academic research on radicalisation or extremism
+   - Trust & Safety policy, moderation, or community guidelines documentation
+   - Fiction, art, or film/book reviews that discuss hate or extremism without endorsing it
+   - Quoting hateful or extremist content in order to condemn, debunk, or explain it
+   The decisive test is whether the page ENDORSES or PROMOTES hate, harassment, scams, phishing, or violence—NOT whether it merely mentions, quotes, or educates about those topics.
 
 Return a JSON object with:
-- score: A number from 0 to 1 indicating phishing likelihood (0 = legitimate, 1 = definitely phishing)
-- impersonatedBrand: The brand being impersonated (if any), or null
-- reasons: Array of specific indicators that led to your assessment
-
-Consider:
-- Visual similarity to known brands
-- Presence of login forms or payment inputs
-- Urgency language (account suspended, verify now, etc.)
-- Mismatch between branding and domain
-- Poor quality or inconsistent design
-- Requests for sensitive information
-
-Be precise and objective. A legitimate banking site scores 0. A perfect PayPal clone on "paypa1.com" scores 0.9+.`;
+- score: A number from 0 to 1 indicating the likelihood this page is abusive under ANY policy above (0 = clearly benign, 1 = severely abusive)
+- category: The single most severe applicable category ("phishing", "scam", "hate_harassment", "violent_extremism", or "benign" if nothing applies)
+- impersonatedBrand: The brand being impersonated (ONLY for phishing or scam), or empty string if none
+- reasons: Array of specific indicators that led to your assessment`;
 
 export type ThinkingLevel = 'low' | 'medium' | 'high';
 
@@ -91,15 +118,51 @@ export interface GeminiAnalysisDetailed extends GeminiAnalysis {
   fallback?: boolean;
 }
 
-const analysisSchema = jsonSchema<{ score: number; impersonatedBrand?: string | null; reasons: string[] }>({
+const analysisSchema = jsonSchema<{
+  score: number;
+  category: ContentCategory;
+  impersonatedBrand?: string | null;
+  reasons: string[];
+}>({
   type: 'object',
   properties: {
-    score: { type: 'number', description: 'Phishing likelihood score from 0 to 1' },
-    impersonatedBrand: { type: 'string', description: 'The brand being impersonated, or empty string if none' },
+    score: { type: 'number', description: 'Likelihood this page is abusive under any policy from 0 to 1' },
+    category: {
+      type: 'string',
+      enum: [...CONTENT_CATEGORIES],
+      description: 'Single most severe applicable policy category, or benign if none apply',
+    },
+    impersonatedBrand: { type: 'string', description: 'The brand being impersonated (only for phishing/scam), or empty string if none' },
     reasons: { type: 'array', items: { type: 'string' }, description: 'Specific indicators that led to the assessment' },
   },
-  required: ['score', 'reasons'],
+  required: ['score', 'category', 'reasons'],
 });
+
+export function normalizeAnalysis(raw: {
+  score?: unknown;
+  category?: unknown;
+  impersonatedBrand?: unknown;
+  reasons?: unknown;
+} | null | undefined): GeminiAnalysis {
+  const numScore = Number(raw?.score);
+  const score = Number.isFinite(numScore) ? Math.max(0, Math.min(1, numScore)) : 0;
+  const rawCategory = typeof raw?.category === 'string' ? raw.category : '';
+  const category: ContentCategory = (CONTENT_CATEGORIES as readonly string[]).includes(rawCategory)
+    ? (rawCategory as ContentCategory)
+    : score >= 0.3
+      ? 'phishing'
+      : 'benign';
+  const rawBrand = typeof raw?.impersonatedBrand === 'string' ? raw.impersonatedBrand.trim() : '';
+  const impersonatedBrand = rawBrand ? rawBrand : undefined;
+  const reasons = Array.isArray(raw?.reasons) ? raw.reasons.map(String) : [];
+
+  return {
+    score,
+    category,
+    impersonatedBrand,
+    reasons,
+  };
+}
 
 /**
  * Analyze content with Gemini (Argon, heavy thinking)
@@ -119,6 +182,7 @@ export async function analyzeWithGemini(
     console.warn('[Gemini] No API key found, returning mock analysis');
     return {
       score: 0,
+      category: 'benign',
       reasons: ['Gemini analysis skipped (no API key)'],
       model: modelId,
       thinkingLevel,
@@ -152,12 +216,10 @@ export async function analyzeWithGemini(
       },
     });
 
-    const analysis = result.object;
+    const normalized = normalizeAnalysis(result.object);
     const u: any = result.usage ?? {};
     return {
-      score: Math.max(0, Math.min(1, Number(analysis.score) || 0)),
-      impersonatedBrand: analysis.impersonatedBrand || undefined,
-      reasons: analysis.reasons ?? [],
+      ...normalized,
       model: modelId,
       thinkingLevel,
       latencyMs: Date.now() - started,
@@ -171,6 +233,7 @@ export async function analyzeWithGemini(
     console.error('[Gemini] Analysis failed:', error);
     return {
       score: 0,
+      category: 'benign',
       reasons: [`Gemini analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`],
       model: modelId,
       thinkingLevel,
@@ -188,6 +251,18 @@ export interface TieredScanResult {
   escalated: boolean;
   escalationReason?: string;
   totalLatencyMs: number;
+}
+
+/**
+ * Which tier produced the final verdict:
+ * - 'argon' when escalated and deep is not fallback
+ * - 'flash' when model verdict comes from fast
+ * - 'rules' when no model verdict is available (fallback or no tiered scan)
+ */
+export function decidedBy(tiered?: TieredScanResult): 'rules' | 'flash' | 'argon' {
+  if (!tiered || tiered.final.fallback) return 'rules';
+  if (tiered.escalated && tiered.deep && !tiered.deep.fallback) return 'argon';
+  return 'flash';
 }
 
 /**

@@ -59,7 +59,12 @@ function DeploymentCard({ deployment, showReviewButtons }: { deployment: Deploym
             <span className={`status-badge ${statusClass}`}>
               {deployment.status}
             </span>
-            <code style={{ fontSize: '0.875rem', color: 'var(--guard-muted)'  }}>
+            {deployment.category && (
+              <span style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem', background: '#eee', borderRadius: '8px', color: 'var(--guard-muted)' }}>
+                {deployment.category}
+              </span>
+            )}
+            <code style={{ fontSize: '0.875rem', color: 'var(--guard-muted)' }}>
               {deployment.id.substring(0, 12)}...
             </code>
           </div>

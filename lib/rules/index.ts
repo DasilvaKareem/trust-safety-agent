@@ -1,11 +1,14 @@
 /**
- * Fast rules-based scoring for phishing and abuse detection
+ * Fast rules-based scoring for phishing, hate speech, and violent extremism detection
  * Runs synchronously on every deployment
  */
+
+import type { ContentCategory } from '@/lib/gemini';
 
 export interface RulesResult {
   score: number; // 0-1
   reasons: string[];
+  categoryHint?: ContentCategory;
   flags: {
     hasLoginForm?: boolean;
     hasSensitiveFields?: boolean;
@@ -15,6 +18,8 @@ export interface RulesResult {
     isTyposquat?: boolean;
     isCliDeploy?: boolean;
     isNewAccount?: boolean;
+    hasHateSignals?: boolean;
+    hasExtremismSignals?: boolean;
   };
 }
 
@@ -55,6 +60,41 @@ const IMPERSONATED_BRANDS: Array<{ name: RegExp; domains: string[] }> = [
 const SENSITIVE_FIELD = /<(input|textarea|select)\b[^>]*\b(name|id|autocomplete|placeholder)\s*=\s*["'][^"']*(card.?num|cc-?number|\bcc\b|cvv|cvc|csc|expiry|cc-exp|ssn|social.?security|tax.?id|seed|mnemonic|recovery.?phrase|secret.?phrase|private.?key|routing|account.?number|\bpin\b|otp|one.?time)[^"']*["']/i;
 const SENSITIVE_LABEL = /(credit|debit) card number|card number|\bcvv\b|\bcvc\b|social security|recovery phrase|seed phrase|private key|12 or 24.word/i;
 const URGENCY = /(account (has been|is|will be) (suspended|limited|locked|disabled|closed|deleted)|unusual (sign.?in )?activity|verify your (identity|account) (now|immediately|within)|within (24|48) hours|avoid (suspension|account (closure|deletion))|asset freeze|unpaid (fee|balance|invoice)|final (notice|warning)|immediate action required|re-?validate)/i;
+
+const PROTECTED_GROUP = '(?:jews|jewish\\s+people|zionists|muslims|islamic\\s+people|black\\s+people|blacks|african\\s+americans|immigrants|migrants|refugees|gays|gay\\s+people|lesbians|lgbtq?\\w*|transgender\\s+people|trans\\s+people|disabled\\s+people|romani|roma)';
+
+const HATE_DEHUMANIZING = new RegExp(
+  `\\b${PROTECTED_GROUP}\\b(?:\\s+[\\w,"'-]+){0,6}\\s+\\b(?:are|as)\\s+(?:nothing\\s+but\\s+|mere\\s+|parasitic\\s+)?(?:vermin|parasites|rats|cockroaches|subhuman|sub-human|a\\s+disease|a\\s+cancer|an\\s+infestation|animals|not\\s+human|filth|a\\s+plague)\\b`,
+  'i'
+);
+
+const HATE_CONSPIRACY = new RegExp(
+  `\\b${PROTECTED_GROUP}\\b(?:\\s+[\\w,"'-]+){0,4}\\s+\\b(?:secretly\\s+)?(?:control|run|own|manipulate|poison)\\s+the\\s+(?:banks|banking|media|press|world|government|courts|nation|economy)\\b`,
+  'i'
+);
+
+const HATE_EXPULSION = new RegExp(
+  `\\b${PROTECTED_GROUP}\\b(?:\\s+[\\w,"'-]+){0,8}\\s+\\b(?:must|should)\\s+be\\s+(?:driven\\s+out|expelled|purged|eradicated|exterminated|cleansed)\\b`,
+  'i'
+);
+
+const EXTREMISM_SIGNAL = /\b(?:race\s+war|the\s+great\s+replacement|join\s+(?:our|the)\s+(?:[\w-]+\s+)?(?:militia|brotherhood|movement|cell|front)\b[^.!?;]{0,80}\b(?:fight|war|arms|armed|combat|purge)|(?:saint|hero)\s+[a-z]+(?:\s+[a-z]+)?\s+(?:was\s+right|showed\s+us))\b/i;
+
+const NEGATION_CLAUSE = /\b(?:it\s+is\s+a\s+(?:lie|myth|falsehood)\s+that|myth\s*:|trope\s*:|false\s+claim\s+that|debunk(?:s|ing)?\s+the\s+(?:myth|lie|claim)\s+that|falsely\s+claim(?:s|ed|ing)?\s+that)\s+[^.!?;]{0,140}/gi;
+
+function stripNegatedClauses(text: string): string {
+  return text.replace(NEGATION_CLAUSE, ' ');
+}
+
+function hasHateSpeechSignals(visibleText: string): boolean {
+  const cleaned = stripNegatedClauses(visibleText);
+  return HATE_DEHUMANIZING.test(cleaned) || HATE_CONSPIRACY.test(cleaned) || HATE_EXPULSION.test(cleaned);
+}
+
+function hasViolentExtremismSignals(visibleText: string): boolean {
+  const cleaned = stripNegatedClauses(visibleText);
+  return EXTREMISM_SIGNAL.test(cleaned);
+}
 
 function stripTags(html: string): string {
   return html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ');
@@ -214,6 +254,19 @@ export function computeRulesScore(
     score += 0.5;
   }
 
+  // Check for hate speech and violent extremism signals in visible text
+  const visibleText = stripTags(html).replace(/\s+/g, ' ');
+  if (hasHateSpeechSignals(visibleText)) {
+    flags.hasHateSignals = true;
+    reasons.push('Contains dehumanizing language or conspiracy claims targeting a protected group');
+    score += 0.3;
+  }
+  if (hasViolentExtremismSignals(visibleText)) {
+    flags.hasExtremismSignals = true;
+    reasons.push('Contains violent extremist recruitment or glorification phrases');
+    score += 0.3;
+  }
+
   // Check deployment metadata
   const metadataFlags = analyzeDeploymentMetadata(metadata);
   
@@ -232,9 +285,19 @@ export function computeRulesScore(
   // Cap score at 1.0
   score = Math.round(Math.min(score, 1.0) * 100) / 100;
 
+  let categoryHint: ContentCategory | undefined;
+  if (flags.hasExtremismSignals) {
+    categoryHint = 'violent_extremism';
+  } else if (flags.hasHateSignals) {
+    categoryHint = 'hate_harassment';
+  } else if (score >= 0.3) {
+    categoryHint = 'phishing';
+  }
+
   return {
     score,
     reasons,
+    ...(categoryHint ? { categoryHint } : {}),
     flags
   };
 }

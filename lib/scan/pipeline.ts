@@ -8,12 +8,14 @@ import { computeRulesScore, determineStatus, type RulesResult } from '@/lib/rule
 import {
   analyzeWithGemini,
   combineTiers,
+  decidedBy,
   effectiveScore,
   escalationReasonFor,
   getDeepModelId,
   getDeepThinkingLevel,
   getFastModelId,
   getFastThinkingLevel,
+  type ContentCategory,
   type GeminiAnalysisDetailed,
   type TieredScanResult,
 } from '@/lib/gemini';
@@ -120,6 +122,7 @@ export async function persistScan(
       ? [`[${modelVerdict.model}${tiered?.escalated ? ', escalated' : ''}]`, ...modelVerdict.reasons]
       : undefined,
     geminiImpersonatedBrand: modelVerdict?.impersonatedBrand,
+    category: modelVerdict?.category ?? rules.categoryHint,
     status: determineStatus(effectiveScore(rules.score, tiered)),
     contentHash: html ? computeContentHash(html) : undefined,
     simHash,
@@ -133,6 +136,8 @@ export interface ScanSummary {
   deploymentId: string;
   url: string;
   status: Deployment['status'];
+  category?: ContentCategory;
+  decidedBy: 'rules' | 'flash' | 'argon';
   rulesScore: number;
   fast?: { model: string; score: number };
   deep?: { model: string; score: number };
@@ -146,6 +151,8 @@ export function summarize(record: Deployment, tiered?: TieredScanResult): ScanSu
     deploymentId: record.id,
     url: record.url,
     status: record.status,
+    category: record.category,
+    decidedBy: decidedBy(tiered),
     rulesScore: record.rulesScore,
     fast: tiered ? { model: tiered.fast.model, score: tiered.fast.score } : undefined,
     deep: tiered?.deep ? { model: tiered.deep.model, score: tiered.deep.score } : undefined,
