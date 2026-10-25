@@ -155,6 +155,13 @@ Vercel signs the **raw** request body with `hex(HMAC-SHA1(secret, body))` in `x-
 - Manual URL scanner
 - Full pipeline test without real integration
 
+### 7. Outward-Facing Impersonation Check
+Given a protected project's own site (URL and optional brand override), Argon Guard searches outward for other live domains that appear to be impersonating it:
+- **Endpoint**: `POST /api/impersonation/find` (`{ url: string, brand?: string }`, `maxDuration: 60` with an internal 28s soft deadline so requests finish under ~30 seconds). Authenticated users are rate-limited to 1 request/min; unauthenticated demo requests are allowed for the app's own production host (`trust-safety-agent.vercel.app` / `NEXT_PUBLIC_APP_URL`) or built-in fixture hosts (rate-limited by IP).
+- **Candidate generation & caps**: `permuteDomains` generates up to **40** deterministic lookalike candidates (hyphen insertion, TLD swaps, `<slug>-*.vercel.app` variants, adjacent transpositions, homoglyph swaps, and single-char omission/repetition). In parallel, `crt.sh` Certificate Transparency logs are queried (capped at **20** hosts, prioritized into the 40-host resolve cap) and **soft-fail** (`ctError` recorded, never throwing) if `crt.sh` times out or returns a non-200 status.
+- **Liveness, comparison & tiered judge**: Candidates are resolved via IPv4 DNS (`isPublicIPv4` SSRF protection) and HTTP-probed (concurrency 8, ~12s stage budget). Up to **8** top live pages are compared via HTML brand signals, hostname edit distance, and SimHash (`computeSimHash` / `hammingDistance`), then judged by Gemini 3.8 Flash with automatic escalation to Gemini 4 Argon on borderline (`[0.35, 0.75]`) or lower-confidence (`< 0.85`) positive verdicts.
+- **Demo UI & real results only**: Available in `/demo` under **"Find impersonators of this site"**. Only real live domains are reported—no results are faked, and an empty hit list is a valid outcome.
+
 ## Tech Stack
 
 - **Framework**: [eve](https://www.npmjs.com/package/eve) - Vercel's durable agent framework

@@ -19,9 +19,13 @@ export function normalizeSiteUrl(input: unknown) {
 }
 
 /** Pin the checked IPv4 address at connection time; validate every redirect as well. */
-export async function readPublicPage(input: string, options: { verification?: boolean } = {}): Promise<string> {
+export async function readPublicPage(
+  input: string,
+  options: { verification?: boolean; timeoutMs?: number; maxBytes?: number } = {}
+): Promise<string> {
   let url = new URL(normalizeSiteUrl(input));
-  const signal = AbortSignal.timeout(15000);
+  const signal = AbortSignal.timeout(options.timeoutMs ?? 15000);
+  const maxBytes = options.maxBytes ?? (options.verification ? 4096 : 2_000_000);
   for (let redirects = 0; redirects <= 4; redirects++) {
     const addresses = await lookup(url.hostname, { family: 4, all: true });
     if (!addresses.length || addresses.some(a => !isPublicIPv4(a.address))) throw new Error('This address is not a public website.');
@@ -36,7 +40,7 @@ export async function readPublicPage(input: string, options: { verification?: bo
         const chunks: Buffer[] = []; let bytes = 0;
         response.on('data', (chunk: Buffer) => {
           bytes += chunk.length;
-          if (bytes > (options.verification ? 4096 : 2_000_000)) { response.destroy(new Error('The page is too large to scan.')); return; }
+          if (bytes > maxBytes) { response.destroy(new Error('The page is too large to scan.')); return; }
           chunks.push(chunk);
         });
         response.on('error', reject);

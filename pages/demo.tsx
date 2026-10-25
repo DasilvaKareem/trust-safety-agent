@@ -10,6 +10,7 @@ import AgentAvatar from '@/components/AgentAvatar';
 import { useRouter } from 'next/router';
 import { DEMO_FIXTURES, type DemoFixture } from '@/lib/demo/fixtures';
 import type { ContentCategory } from '@/lib/gemini';
+import type { ImpersonationReport } from '@/lib/impersonation';
 
 const CATEGORY_LABELS: Record<ContentCategory, string> = {
   phishing: 'Phishing',
@@ -19,8 +20,9 @@ const CATEGORY_LABELS: Record<ContentCategory, string> = {
   benign: 'Benign',
 };
 
-const DECIDED_BY_LABELS: Record<'rules' | 'flash' | 'argon', string> = {
+const DECIDED_BY_LABELS: Record<'rules' | 'flash' | 'argon' | 'heuristic', string> = {
   rules: 'Rules',
+  heuristic: 'Heuristic',
   flash: 'Gemini 3.8 Flash',
   argon: 'Gemini 4 Argon',
 };
@@ -40,12 +42,51 @@ export default function DemoPage({ user }: { user: User }) {
   const [result, setResult] = useState<any>(null);
   const [scanError, setScanError] = useState(false);
 
+  const [impersonationUrl, setImpersonationUrl] = useState(
+    process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost')
+      ? process.env.NEXT_PUBLIC_APP_URL
+      : 'https://trust-safety-agent.vercel.app'
+  );
+  const [impersonationBrand, setImpersonationBrand] = useState('');
+  const [isFindingImpersonators, setIsFindingImpersonators] = useState(false);
+  const [impersonationReport, setImpersonationReport] = useState<ImpersonationReport | null>(null);
+  const [impersonationError, setImpersonationError] = useState<string | null>(null);
+
   useEffect(() => {
     const q = router.query.sample;
     if (typeof q === 'string' && DEMO_FIXTURES.some(f => f.slug === q)) {
       setSelectedSlug(q);
     }
   }, [router.query.sample]);
+
+  const findImpersonatorsForSite = async () => {
+    if (!impersonationUrl.trim()) return;
+
+    setIsFindingImpersonators(true);
+    setImpersonationReport(null);
+    setImpersonationError(null);
+
+    try {
+      const response = await fetch('/api/impersonation/find', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: impersonationUrl.trim(),
+          brand: impersonationBrand.trim() || undefined,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Impersonation check failed');
+      }
+      setImpersonationReport(data);
+    } catch (error) {
+      setImpersonationError(error instanceof Error ? error.message : 'Impersonation check failed');
+    } finally {
+      setIsFindingImpersonators(false);
+    }
+  };
 
   const scanSample = async () => {
     setIsScanning(true);
@@ -308,6 +349,186 @@ export default function DemoPage({ user }: { user: User }) {
           )}
         </section>
       )}
+
+      {/* Outward-facing Impersonation Finder */}
+      <section className="card" style={{ marginTop: '2rem' }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem' }}>
+          Find impersonators of this site
+        </h2>
+        <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '1rem' }}>
+          Generate typosquat / lookalike candidates, probe Certificate Transparency logs, resolve live public IPv4 hosts, and judge potential brand impersonators with Gemini Flash &rarr; Argon.
+        </p>
+
+        <div className="grid grid-2" style={{ marginBottom: '1rem' }}>
+          <div>
+            <label
+              htmlFor="impersonation-url"
+              style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', marginBottom: '0.35rem', color: '#444' }}
+            >
+              Protected Site URL
+            </label>
+            <input
+              id="impersonation-url"
+              type="url"
+              placeholder="https://trust-safety-agent.vercel.app"
+              value={impersonationUrl}
+              onChange={e => setImpersonationUrl((e.target as HTMLInputElement).value)}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '1px solid #e5e5e5',
+                borderRadius: '4px',
+              }}
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="impersonation-brand"
+              style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', marginBottom: '0.35rem', color: '#444' }}
+            >
+              Brand Override (optional)
+            </label>
+            <input
+              id="impersonation-brand"
+              type="text"
+              placeholder="Derived from title or domain if blank"
+              value={impersonationBrand}
+              onChange={e => setImpersonationBrand((e.target as HTMLInputElement).value)}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '1px solid #e5e5e5',
+                borderRadius: '4px',
+              }}
+            />
+          </div>
+        </div>
+
+        <button
+          className="btn btn-primary"
+          onClick={findImpersonatorsForSite}
+          disabled={isFindingImpersonators || !impersonationUrl.trim()}
+        >
+          {isFindingImpersonators ? 'Searching… (up to ~30s)' : 'Find impersonators'}
+        </button>
+
+        {impersonationError && (
+          <div
+            style={{
+              marginTop: '1rem',
+              padding: '0.75rem 1rem',
+              background: '#f8d7da',
+              color: '#721c24',
+              borderRadius: '4px',
+              fontSize: '0.875rem',
+            }}
+          >
+            {impersonationError}
+          </div>
+        )}
+
+        {impersonationReport && (
+          <div style={{ marginTop: '1.5rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '1rem',
+                padding: '0.75rem 1rem',
+                background: '#f9f9f9',
+                borderRadius: '4px',
+                fontSize: '0.85rem',
+                marginBottom: '1rem',
+              }}
+            >
+              <span>
+                Brand: <strong>{impersonationReport.protected.brand}</strong> ({impersonationReport.protected.domain})
+              </span>
+              <span>
+                Generated: <strong>{impersonationReport.candidatesGenerated}</strong>
+              </span>
+              <span>
+                Resolved: <strong>{impersonationReport.candidatesResolved}</strong>
+              </span>
+              <span>
+                Live: <strong>{impersonationReport.liveHosts}</strong>
+              </span>
+              <span>
+                Compared: <strong>{impersonationReport.compared}</strong>
+              </span>
+              <span>
+                Hits: <strong>{impersonationReport.hits.length}</strong>
+              </span>
+              <span>
+                Elapsed: <strong>{impersonationReport.elapsedMs} ms</strong>
+              </span>
+              {impersonationReport.truncated && (
+                <span style={{ color: '#856404', fontWeight: '600' }}>
+                  Truncated by 30s budget
+                </span>
+              )}
+              {impersonationReport.ctError && (
+                <span style={{ color: '#666' }}>
+                  CT note: {impersonationReport.ctError}
+                </span>
+              )}
+            </div>
+
+            {impersonationReport.hits.length === 0 ? (
+              <p style={{ fontSize: '0.9rem', color: '#444', padding: '0.75rem 0' }}>
+                No impersonators found in this pass (real scan; absence of hits is a valid result).
+              </p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #e5e5e5', textAlign: 'left' }}>
+                      <th style={{ padding: '0.5rem' }}>Host</th>
+                      <th style={{ padding: '0.5rem' }}>Confidence</th>
+                      <th style={{ padding: '0.5rem' }}>Decided By</th>
+                      <th style={{ padding: '0.5rem' }}>Heuristic</th>
+                      <th style={{ padding: '0.5rem' }}>SimHash Dist</th>
+                      <th style={{ padding: '0.5rem' }}>Reasons</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {impersonationReport.hits.map(hit => (
+                      <tr key={hit.host} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '0.5rem', fontWeight: '500' }}>
+                          <a
+                            href={hit.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: '#0070f3', textDecoration: 'underline' }}
+                          >
+                            {hit.host}
+                          </a>
+                        </td>
+                        <td style={{ padding: '0.5rem' }}>
+                          {(hit.confidence * 100).toFixed(0)}%
+                        </td>
+                        <td style={{ padding: '0.5rem' }}>
+                          {DECIDED_BY_LABELS[hit.decidedBy] ?? hit.decidedBy}
+                        </td>
+                        <td style={{ padding: '0.5rem' }}>
+                          {(hit.heuristicScore * 100).toFixed(0)}%
+                        </td>
+                        <td style={{ padding: '0.5rem' }}>
+                          {hit.simHashDistance !== undefined ? hit.simHashDistance : 'N/A'}
+                        </td>
+                        <td style={{ padding: '0.5rem' }}>
+                          {hit.reasons.join('; ')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
 
       <nav style={{ marginTop: '2rem' }}>
         <Link href="/" className="btn btn-secondary">
