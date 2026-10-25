@@ -10,3 +10,7 @@ dist/
 coverage/
 .eve/
 *.tsbuildinfo
+
+# eve
+.eve/
+.output/

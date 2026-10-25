@@ -194,6 +194,33 @@ export interface TieredScanResult {
  * Tier 2: Argon with heavy thinking, only if the fast score is borderline/high
  * (>= GEMINI_ESCALATION_THRESHOLD, default 0.4), the rules flagged it, or tier 1 failed.
  */
+/** Why a tier-1 result should escalate to the deep tier, or undefined to stop at tier 1. */
+export function escalationReasonFor(fast: GeminiAnalysisDetailed, rulesScore = 0): string | undefined {
+  const threshold = getEscalationThreshold();
+  if (fast.fallback && !fast.reasons[0]?.includes('no API key')) return 'fast tier failed';
+  if (!fast.fallback && fast.score >= threshold) return `fast score ${fast.score.toFixed(2)} >= ${threshold}`;
+  if (rulesScore >= 0.3) return `rules score ${rulesScore.toFixed(2)} >= 0.30`;
+  return undefined;
+}
+
+/** Combine tier results the same way scanTiered does (used by the eve durable workflow). */
+export function combineTiers(
+  fast: GeminiAnalysisDetailed,
+  deep: GeminiAnalysisDetailed | undefined,
+  escalationReason: string | undefined,
+  totalLatencyMs: number
+): TieredScanResult {
+  if (!deep) return { final: fast, fast, escalated: false, totalLatencyMs };
+  return {
+    final: deep.fallback && !fast.fallback ? fast : deep,
+    fast,
+    deep,
+    escalated: true,
+    escalationReason,
+    totalLatencyMs,
+  };
+}
+
 export async function scanTiered(
   html: string,
   url: string,
@@ -205,11 +232,7 @@ export async function scanTiered(
     model: getFastModelId(),
     thinkingLevel: getFastThinkingLevel(),
   });
-  const threshold = getEscalationThreshold();
-  let escalationReason: string | undefined;
-  if (fast.fallback && !fast.reasons[0]?.includes('no API key')) escalationReason = 'fast tier failed';
-  else if (!fast.fallback && fast.score >= threshold) escalationReason = `fast score ${fast.score.toFixed(2)} >= ${threshold}`;
-  else if (rulesScore >= 0.3) escalationReason = `rules score ${rulesScore.toFixed(2)} >= 0.30`;
+  const escalationReason = escalationReasonFor(fast, rulesScore);
 
   if (!escalationReason) {
     return { final: fast, fast, escalated: false, totalLatencyMs: Date.now() - started };
@@ -218,14 +241,7 @@ export async function scanTiered(
     model: getDeepModelId(),
     thinkingLevel: getDeepThinkingLevel(),
   });
-  return {
-    final: deep.fallback && !fast.fallback ? fast : deep,
-    fast,
-    deep,
-    escalated: true,
-    escalationReason,
-    totalLatencyMs: Date.now() - started,
-  };
+  return combineTiers(fast, deep, escalationReason, Date.now() - started);
 }
 
 /**

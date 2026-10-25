@@ -1,202 +1,62 @@
 /**
  * Vercel Webhook Handler
- * Receives deployment events and triggers Trust & Safety scanning
+ * Verifies x-vercel-signature (HMAC-SHA1 over the raw body), then hands the deployment to the
+ * eve agent's durable deep-scan workflow. Falls back to an inline scan if eve is unavailable.
  */
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { getWebhookSecret, readRawBody, verifyVercelSignature } from '@/lib/webhook/signature';
+import { jobFromWebhookPayload, scanDeployment } from '@/lib/scan/pipeline';
+import { handOffToEve } from '@/lib/scan/eve-handoff';
 
-import { NextApiRequest, NextApiResponse } from 'next';
-import { createHmac } from 'crypto';
-import { storage } from '@/lib/storage';
-import { computeRulesScore, determineStatus } from '@/lib/rules';
-import { scanTiered, effectiveScore } from '@/lib/gemini';
-import { computeContentHash, computeSimHash, generateClusterId, areSimilar } from '@/lib/fingerprint';
-
-/**
- * Verify webhook signature
- */
-function verifyWebhookSignature(payload: string, signature: string, secret: string): boolean {
-  const hmac = createHmac('sha256', secret);
-  hmac.update(payload);
-  const expectedSignature = hmac.digest('hex');
-  
-  return signature === expectedSignature;
-}
+const SCAN_EVENTS = new Set(['deployment.succeeded', 'deployment.ready']);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const rawBody = await readRawBody(req);
+  const secret = getWebhookSecret();
+  if (!secret) {
+    console.error('[Webhook] No webhook secret configured');
+    return res.status(500).json({ error: 'Webhook secret not configured' });
+  }
+  if (!verifyVercelSignature(rawBody, req.headers['x-vercel-signature'], secret)) {
+    console.warn('[Webhook] Missing or invalid signature');
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
+
+  let event: any;
   try {
-    // Verify webhook signature
-    const signature = req.headers['x-vercel-signature'] as string;
-    const webhookSecret = process.env.VERCEL_INTEGRATION_WEBHOOK_SECRET;
+    event = JSON.parse(rawBody.toString('utf8'));
+  } catch {
+    return res.status(400).json({ error: 'Invalid JSON' });
+  }
+  console.log('[Webhook] Received event:', event.type, event.id);
 
-    if (webhookSecret) {
-      if (!signature) {
-        console.warn('[Webhook] Missing signature');
-        return res.status(401).json({ error: 'Missing signature' });
-      }
-      const payload = JSON.stringify(req.body);
-      if (!verifyWebhookSignature(payload, signature, webhookSecret)) {
-        console.warn('[Webhook] Invalid signature');
-        return res.status(401).json({ error: 'Invalid signature' });
-      }
+  if (!SCAN_EVENTS.has(event.type)) {
+    return res.status(200).json({ received: true, ignored: event.type });
+  }
+
+  const job = jobFromWebhookPayload(event.payload);
+  if (!job.deploymentId || job.url === 'https://') {
+    return res.status(400).json({ error: 'Missing deployment id/url' });
+  }
+
+  try {
+    const sessionId = await handOffToEve(job);
+    if (sessionId) {
+      console.log('[Webhook] Handed to eve deep_scan workflow:', job.deploymentId, sessionId);
+      return res.status(202).json({ received: true, via: 'eve', sessionId });
     }
-
-    const event = req.body;
-    console.log('[Webhook] Received event:', event.type, event.id);
-
-    // Handle deployment.succeeded events
-    if (event.type === 'deployment.succeeded') {
-      await handleDeploymentSucceeded(event.payload);
-    }
-
-    res.status(200).json({ received: true });
+    const summary = await scanDeployment(job);
+    console.log('[Webhook] Inline scan:', summary);
+    return res.status(200).json({ received: true, via: 'inline', status: summary.status });
   } catch (error) {
-    console.error('[Webhook] Handler failed:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
+    console.error('[Webhook] Scan failed:', job.deploymentId, error);
+    return res.status(500).json({ error: 'Scan failed' });
   }
 }
 
-async function handleDeploymentSucceeded(payload: any) {
-  const {
-    deployment,
-    project,
-    team,
-    user,
-  } = payload;
-
-  const deploymentId = deployment.id;
-  const deploymentUrl = deployment.url;
-  const fullUrl = `https://${deploymentUrl}`;
-
-  console.log('[Webhook] Processing deployment:', deploymentId, fullUrl);
-
-  try {
-    // Fetch deployment HTML
-    let html = '';
-    try {
-      const response = await fetch(fullUrl, {
-        headers: { 'User-Agent': 'TrustSafetyBot/1.0' },
-        signal: AbortSignal.timeout(10000),
-      });
-      html = await response.text();
-    } catch (fetchError) {
-      console.warn('[Webhook] Failed to fetch deployment HTML:', fetchError);
-      html = ''; // Continue with empty HTML
-    }
-
-    // Run fast rules-based scoring
-    const metadata = {
-      gitSource: !!deployment.meta?.githubCommitSha,
-      accountAge: team?.createdAt ? Math.floor((Date.now() - team.createdAt) / (24 * 60 * 60 * 1000)) : undefined,
-      projectAge: project?.createdAt ? Math.floor((Date.now() - project.createdAt) / (24 * 60 * 60 * 1000)) : undefined,
-    };
-
-    const rulesResult = computeRulesScore(html, fullUrl, metadata);
-
-    // Two-tier model scan: Gemini Flash on every deploy, Argon (heavy thinking) on escalation
-    const tiered = html ? await scanTiered(html, fullUrl, rulesResult.score) : undefined;
-    const modelVerdict = tiered && !tiered.final.fallback ? tiered.final : undefined;
-    const status = determineStatus(effectiveScore(rulesResult.score, tiered));
-
-    // Compute fingerprints
-    const contentHash = html ? computeContentHash(html) : undefined;
-    const simHash = html ? computeSimHash(html) : undefined;
-
-    // Check for existing cluster
-    let clusterId: string | undefined;
-    if (simHash) {
-      const existingCluster = await storage.getClusterBySimHash(simHash);
-      if (existingCluster) {
-        clusterId = existingCluster.id;
-        // Update cluster
-        existingCluster.deploymentIds.push(deploymentId);
-        existingCluster.lastSeen = Date.now();
-        existingCluster.count += 1;
-        await storage.saveCluster(existingCluster);
-        console.log('[Webhook] Added to existing cluster:', clusterId);
-      } else {
-        // Check for similar clusters
-        const allClusters = await storage.getAllClusters();
-        for (const cluster of allClusters) {
-          if (areSimilar(simHash, cluster.simHash)) {
-            clusterId = cluster.id;
-            cluster.deploymentIds.push(deploymentId);
-            cluster.lastSeen = Date.now();
-            cluster.count += 1;
-            await storage.saveCluster(cluster);
-            console.log('[Webhook] Added to similar cluster:', clusterId);
-            break;
-          }
-        }
-
-        // Create new cluster if no match
-        if (!clusterId) {
-          clusterId = generateClusterId(simHash);
-          await storage.saveCluster({
-            id: clusterId,
-            simHash,
-            deploymentIds: [deploymentId],
-            firstSeen: Date.now(),
-            lastSeen: Date.now(),
-            count: 1,
-          });
-          console.log('[Webhook] Created new cluster:', clusterId);
-        }
-      }
-    }
-
-    // Find installation for this deployment
-    const installations = await storage.getAllInstallations();
-    const installation = installations.find(inst => 
-      inst.teamId === team?.id || inst.userId === user?.id
-    );
-
-    // Save deployment record
-    const deploymentRecord = {
-      id: deploymentId,
-      installationId: installation?.id || 'unknown',
-      projectId: project?.id || 'unknown',
-      url: fullUrl,
-      deploymentUrl,
-      createdAt: deployment.createdAt || Date.now(),
-      rulesScore: rulesResult.score,
-      rulesReasons: rulesResult.reasons,
-      geminiScore: modelVerdict?.score,
-      geminiReasons: modelVerdict ? [`[${modelVerdict.model}${tiered?.escalated ? ', escalated' : ''}]`, ...modelVerdict.reasons] : undefined,
-      geminiImpersonatedBrand: modelVerdict?.impersonatedBrand,
-      status,
-      contentHash,
-      simHash,
-      clusterId,
-    };
-
-    await storage.saveDeployment(deploymentRecord);
-
-    console.log('[Webhook] Deployment processed:', {
-      id: deploymentId,
-      rulesScore: rulesResult.score,
-      status,
-      clusterId
-    });
-
-    if (tiered) {
-      console.log('[Webhook] Model scan:', {
-        fast: `${tiered.fast.model} ${tiered.fast.score}`,
-        deep: tiered.deep ? `${tiered.deep.model} ${tiered.deep.score}` : 'skipped',
-        escalationReason: tiered.escalationReason,
-      });
-    }
-
-  } catch (error) {
-    console.error('[Webhook] Failed to process deployment:', deploymentId, error);
-    throw error;
-  }
-}
-
-// Tiered scan can take ~15-30s when it escalates to Argon with heavy thinking
-export const config = { maxDuration: 120 };
+// Signature is computed over the exact bytes Vercel sent, so Next must not parse the body.
+export const config = { api: { bodyParser: false }, maxDuration: 120 };
