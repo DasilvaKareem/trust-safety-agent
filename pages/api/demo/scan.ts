@@ -6,7 +6,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { storage } from '@/lib/storage';
 import { computeRulesScore, determineStatus } from '@/lib/rules';
 import { computeContentHash, computeSimHash } from '@/lib/fingerprint';
-import { analyzeWithGemini, fetchPageHTML } from '@/lib/gemini';
+import { scanTiered, effectiveScore, fetchPageHTML } from '@/lib/gemini';
 import { randomBytes } from 'crypto';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -38,10 +38,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const rulesResult = computeRulesScore(html, url);
 
     // Run Gemini analysis
-    const geminiAnalysis = await analyzeWithGemini(html);
+    // Two-tier: Flash on every scan, escalate to Argon (heavy thinking) when needed
+    const tiered = await scanTiered(html, url, rulesResult.score);
+    const geminiAnalysis = tiered.final;
 
     // Determine status
-    const status = determineStatus(rulesResult.score, geminiAnalysis.score);
+    const status = determineStatus(effectiveScore(rulesResult.score, tiered));
 
     // Compute fingerprints
     const contentHash = computeContentHash(html);
@@ -72,6 +74,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       deployment,
       rulesResult,
       geminiAnalysis,
+      tiers: {
+        fast: tiered.fast,
+        deep: tiered.deep,
+        escalated: tiered.escalated,
+        escalationReason: tiered.escalationReason,
+        totalLatencyMs: tiered.totalLatencyMs,
+      },
     });
   } catch (error) {
     console.error('[Demo Scan] Failed:', error);
@@ -81,3 +90,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 }
+
+// Tiered scan can take ~15-30s when it escalates to Argon with heavy thinking
+export const config = { maxDuration: 120 };

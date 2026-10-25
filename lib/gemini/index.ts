@@ -2,8 +2,8 @@
  * Gemini vision-based analysis for brand impersonation and credential harvesting
  */
 
-import { google } from '@ai-sdk/google';
-import { generateObject } from 'ai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { generateObject, jsonSchema } from 'ai';
 
 export interface GeminiAnalysis {
   score: number; // 0-1
@@ -33,89 +33,212 @@ Consider:
 
 Be precise and objective. A legitimate banking site scores 0. A perfect PayPal clone on "paypa1.com" scores 0.9+.`;
 
+export type ThinkingLevel = 'low' | 'medium' | 'high';
+
+/** Tier 2 (deep) model: Gemini 4 Argon. Override with GEMINI_DEEP_MODEL (GEMINI_MODEL kept as an alias). */
+export const DEFAULT_DEEP_MODEL = 'gemini-4-argon';
 /**
- * Analyze content with Gemini
+ * Tier 1 (fast) model: Gemini 3.8 Flash. "Gemini 3.8 Flash Cyber" is only listed on
+ * Google Cloud's Agent Platform (Vertex), not in the Gemini Developer API model list,
+ * so the AI Studio key uses gemini-3.8-flash. Override with GEMINI_FAST_MODEL.
+ */
+export const DEFAULT_FAST_MODEL = 'gemini-3.8-flash';
+
+export function getDeepModelId(): string {
+  return process.env.GEMINI_DEEP_MODEL || process.env.GEMINI_MODEL || DEFAULT_DEEP_MODEL;
+}
+export function getFastModelId(): string {
+  return process.env.GEMINI_FAST_MODEL || DEFAULT_FAST_MODEL;
+}
+/** @deprecated use getDeepModelId */
+export const getGeminiModelId = getDeepModelId;
+
+function parseLevel(v: string | undefined, fallback: ThinkingLevel): ThinkingLevel {
+  return v === 'low' || v === 'medium' || v === 'high' ? v : fallback;
+}
+
+/**
+ * Heavy thinking for the deep tier: thinkingLevel 'high' is the maximum reasoning
+ * level the Gemini API exposes for Gemini 3+/4 models. Override with GEMINI_DEEP_THINKING_LEVEL.
+ */
+export function getDeepThinkingLevel(): ThinkingLevel {
+  return parseLevel(process.env.GEMINI_DEEP_THINKING_LEVEL ?? process.env.GEMINI_THINKING_LEVEL, 'high');
+}
+/** Fast tier runs on every deploy, so it defaults to 'low'. Override with GEMINI_FAST_THINKING_LEVEL. */
+export function getFastThinkingLevel(): ThinkingLevel {
+  return parseLevel(process.env.GEMINI_FAST_THINKING_LEVEL, 'low');
+}
+export const getThinkingLevel = getDeepThinkingLevel;
+
+/** Escalate to the deep tier when the fast score is >= this (default 0.4) */
+export function getEscalationThreshold(): number {
+  const n = Number(process.env.GEMINI_ESCALATION_THRESHOLD);
+  return Number.isFinite(n) && n > 0 ? n : 0.4;
+}
+
+export interface GeminiUsage {
+  inputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+}
+
+export interface GeminiAnalysisDetailed extends GeminiAnalysis {
+  model: string;
+  thinkingLevel: string;
+  latencyMs: number;
+  usage?: GeminiUsage;
+  /** true when the result is a fallback (no key or API error), not a model verdict */
+  fallback?: boolean;
+}
+
+const analysisSchema = jsonSchema<{ score: number; impersonatedBrand?: string | null; reasons: string[] }>({
+  type: 'object',
+  properties: {
+    score: { type: 'number', description: 'Phishing likelihood score from 0 to 1' },
+    impersonatedBrand: { type: 'string', description: 'The brand being impersonated, or empty string if none' },
+    reasons: { type: 'array', items: { type: 'string' }, description: 'Specific indicators that led to the assessment' },
+  },
+  required: ['score', 'reasons'],
+});
+
+/**
+ * Analyze content with Gemini (Argon, heavy thinking)
  */
 export async function analyzeWithGemini(
   html: string,
-  screenshotBase64?: string
-): Promise<GeminiAnalysis> {
-  // Check if API key is available
-  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  
+  screenshotBase64?: string,
+  url?: string,
+  opts: { model?: string; thinkingLevel?: ThinkingLevel } = {}
+): Promise<GeminiAnalysisDetailed> {
+  const modelId = opts.model ?? getDeepModelId();
+  const thinkingLevel = opts.thinkingLevel ?? getDeepThinkingLevel();
+  const started = Date.now();
+  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
+
   if (!apiKey) {
     console.warn('[Gemini] No API key found, returning mock analysis');
     return {
       score: 0,
-      reasons: ['Gemini analysis skipped (no API key)']
+      reasons: ['Gemini analysis skipped (no API key)'],
+      model: modelId,
+      thinkingLevel,
+      latencyMs: 0,
+      fallback: true,
     };
   }
 
   try {
-    // Use Gemini 2.0 Flash for fast multimodal analysis
-    const model = google('gemini-2.0-flash-001');
+    const google = createGoogleGenerativeAI({ apiKey });
+    const model = google(modelId);
 
-    // Prepare content parts
     const parts: any[] = [
       { type: 'text', text: ANALYSIS_PROMPT },
-      { type: 'text', text: `\n\nHTML Content:\n${html.substring(0, 4000)}` } // Limit HTML length
+      { type: 'text', text: `\n\nDeployment URL: ${url ?? 'unknown'}\n\nHTML Content:\n${html.substring(0, 8000)}` },
     ];
-
-    // Add screenshot if available
     if (screenshotBase64) {
-      parts.push({
-        type: 'image',
-        image: screenshotBase64
-      });
+      parts.push({ type: 'image', image: screenshotBase64 });
     }
 
-    // Generate structured analysis
     const result = await generateObject({
       model,
-      schema: {
-        type: 'object' as const,
-        properties: {
-          score: {
-            type: 'number' as const,
-            description: 'Phishing likelihood score from 0 to 1'
-          },
-          impersonatedBrand: {
-            type: 'string' as const,
-            description: 'The brand being impersonated, if any',
-            nullable: true
-          },
-          reasons: {
-            type: 'array' as const,
-            items: { type: 'string' as const },
-            description: 'Specific indicators that led to the assessment'
-          }
+      schema: analysisSchema,
+      messages: [{ role: 'user', content: parts }],
+      providerOptions: {
+        google: {
+          thinkingConfig: { thinkingLevel },
         },
-        required: ['score', 'reasons']
-      } as any, // Type assertion for AI SDK compatibility
-      messages: [
-        {
-          role: 'user',
-          content: parts
-        }
-      ],
-      temperature: 0.3,
+      },
     });
 
-    const analysis = result.object as { score: number; impersonatedBrand?: string; reasons: string[] };
-
+    const analysis = result.object;
+    const u: any = result.usage ?? {};
     return {
-      score: Math.max(0, Math.min(1, analysis.score)),
+      score: Math.max(0, Math.min(1, Number(analysis.score) || 0)),
       impersonatedBrand: analysis.impersonatedBrand || undefined,
-      reasons: analysis.reasons
+      reasons: analysis.reasons ?? [],
+      model: modelId,
+      thinkingLevel,
+      latencyMs: Date.now() - started,
+      usage: {
+        inputTokens: u.inputTokens ?? 0,
+        outputTokens: u.outputTokens ?? 0,
+        reasoningTokens: u.reasoningTokens ?? u.outputTokenDetails?.reasoningTokens ?? 0,
+      },
     };
-
   } catch (error) {
     console.error('[Gemini] Analysis failed:', error);
     return {
       score: 0,
-      reasons: [`Gemini analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`]
+      reasons: [`Gemini analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`],
+      model: modelId,
+      thinkingLevel,
+      latencyMs: Date.now() - started,
+      fallback: true,
     };
   }
+}
+
+export interface TieredScanResult {
+  /** final verdict: deep result if escalated, otherwise fast */
+  final: GeminiAnalysisDetailed;
+  fast: GeminiAnalysisDetailed;
+  deep?: GeminiAnalysisDetailed;
+  escalated: boolean;
+  escalationReason?: string;
+  totalLatencyMs: number;
+}
+
+/**
+ * Two-tier scan.
+ * Tier 1 (every deploy): fast Flash model.
+ * Tier 2: Argon with heavy thinking, only if the fast score is borderline/high
+ * (>= GEMINI_ESCALATION_THRESHOLD, default 0.4), the rules flagged it, or tier 1 failed.
+ */
+export async function scanTiered(
+  html: string,
+  url: string,
+  rulesScore = 0,
+  screenshotBase64?: string
+): Promise<TieredScanResult> {
+  const started = Date.now();
+  const fast = await analyzeWithGemini(html, screenshotBase64, url, {
+    model: getFastModelId(),
+    thinkingLevel: getFastThinkingLevel(),
+  });
+  const threshold = getEscalationThreshold();
+  let escalationReason: string | undefined;
+  if (fast.fallback && !fast.reasons[0]?.includes('no API key')) escalationReason = 'fast tier failed';
+  else if (!fast.fallback && fast.score >= threshold) escalationReason = `fast score ${fast.score.toFixed(2)} >= ${threshold}`;
+  else if (rulesScore >= 0.3) escalationReason = `rules score ${rulesScore.toFixed(2)} >= 0.30`;
+
+  if (!escalationReason) {
+    return { final: fast, fast, escalated: false, totalLatencyMs: Date.now() - started };
+  }
+  const deep = await analyzeWithGemini(html, screenshotBase64, url, {
+    model: getDeepModelId(),
+    thinkingLevel: getDeepThinkingLevel(),
+  });
+  return {
+    final: deep.fallback && !fast.fallback ? fast : deep,
+    fast,
+    deep,
+    escalated: true,
+    escalationReason,
+    totalLatencyMs: Date.now() - started,
+  };
+}
+
+/**
+ * Final risk score for a deploy. Rules are a cheap, noisy first pass, so once the
+ * deep tier has run its verdict decides (rules only decide whether to escalate).
+ * Without escalation, the higher of rules and Flash wins (both are low by construction).
+ * If no model verdict is available, fall back to the rules score.
+ */
+export function effectiveScore(rulesScore: number, tiered?: TieredScanResult): number {
+  if (!tiered || tiered.final.fallback) return rulesScore;
+  return tiered.escalated && tiered.deep && !tiered.deep.fallback
+    ? tiered.deep.score
+    : Math.max(rulesScore, tiered.final.score);
 }
 
 /**

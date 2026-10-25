@@ -7,6 +7,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { createHmac } from 'crypto';
 import { storage } from '@/lib/storage';
 import { computeRulesScore, determineStatus } from '@/lib/rules';
+import { scanTiered, effectiveScore } from '@/lib/gemini';
 import { computeContentHash, computeSimHash, generateClusterId, areSimilar } from '@/lib/fingerprint';
 
 /**
@@ -30,7 +31,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const signature = req.headers['x-vercel-signature'] as string;
     const webhookSecret = process.env.VERCEL_INTEGRATION_WEBHOOK_SECRET;
 
-    if (webhookSecret && signature) {
+    if (webhookSecret) {
+      if (!signature) {
+        console.warn('[Webhook] Missing signature');
+        return res.status(401).json({ error: 'Missing signature' });
+      }
       const payload = JSON.stringify(req.body);
       if (!verifyWebhookSignature(payload, signature, webhookSecret)) {
         console.warn('[Webhook] Invalid signature');
@@ -92,7 +97,11 @@ async function handleDeploymentSucceeded(payload: any) {
     };
 
     const rulesResult = computeRulesScore(html, fullUrl, metadata);
-    const status = determineStatus(rulesResult.score);
+
+    // Two-tier model scan: Gemini Flash on every deploy, Argon (heavy thinking) on escalation
+    const tiered = html ? await scanTiered(html, fullUrl, rulesResult.score) : undefined;
+    const modelVerdict = tiered && !tiered.final.fallback ? tiered.final : undefined;
+    const status = determineStatus(effectiveScore(rulesResult.score, tiered));
 
     // Compute fingerprints
     const contentHash = html ? computeContentHash(html) : undefined;
@@ -157,6 +166,9 @@ async function handleDeploymentSucceeded(payload: any) {
       createdAt: deployment.createdAt || Date.now(),
       rulesScore: rulesResult.score,
       rulesReasons: rulesResult.reasons,
+      geminiScore: modelVerdict?.score,
+      geminiReasons: modelVerdict ? [`[${modelVerdict.model}${tiered?.escalated ? ', escalated' : ''}]`, ...modelVerdict.reasons] : undefined,
+      geminiImpersonatedBrand: modelVerdict?.impersonatedBrand,
       status,
       contentHash,
       simHash,
@@ -172,10 +184,12 @@ async function handleDeploymentSucceeded(payload: any) {
       clusterId
     });
 
-    // Schedule deep scan if status warrants it
-    if (status !== 'clean') {
-      console.log('[Webhook] Scheduling deep scan for deployment:', deploymentId);
-      // TODO: Trigger eve agent deep scan (will be implemented in agent code)
+    if (tiered) {
+      console.log('[Webhook] Model scan:', {
+        fast: `${tiered.fast.model} ${tiered.fast.score}`,
+        deep: tiered.deep ? `${tiered.deep.model} ${tiered.deep.score}` : 'skipped',
+        escalationReason: tiered.escalationReason,
+      });
     }
 
   } catch (error) {
@@ -183,3 +197,6 @@ async function handleDeploymentSucceeded(payload: any) {
     throw error;
   }
 }
+
+// Tiered scan can take ~15-30s when it escalates to Argon with heavy thinking
+export const config = { maxDuration: 120 };

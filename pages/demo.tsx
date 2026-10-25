@@ -245,6 +245,17 @@ export default function DemoPage() {
                     ` (Impersonating: ${result.geminiAnalysis.impersonatedBrand})`
                   }
                 </div>
+                <div style={{ fontSize: '0.8rem', color: '#555', marginBottom: '0.5rem', fontFamily: 'monospace' }}>
+                  {result.tiers?.fast && (
+                    <>Tier 1: {result.tiers.fast.model} ({result.tiers.fast.thinkingLevel} thinking) {(result.tiers.fast.score * 100).toFixed(0)}% in {result.tiers.fast.latencyMs} ms<br /></>
+                  )}
+                  {result.tiers?.escalated && result.tiers.deep ? (
+                    <>Tier 2: {result.tiers.deep.model} ({result.tiers.deep.thinkingLevel} thinking) {(result.tiers.deep.score * 100).toFixed(0)}% in {result.tiers.deep.latencyMs} ms, escalated because {result.tiers.escalationReason}</>
+                  ) : result.tiers ? (
+                    <>Tier 2: not needed</>
+                  ) : null}
+                  {result.geminiAnalysis.fallback && <><br />Fallback result (no model verdict)</>}
+                </div>
                 {result.geminiAnalysis.reasons.length > 0 && (
                   <ul style={{ fontSize: '0.875rem', paddingLeft: '1.5rem' }}>
                     {result.geminiAnalysis.reasons.map((reason: string, i: number) => (

@@ -14,6 +14,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { code, configurationId, teamId, userId } = req.query;
 
+  if (!process.env.VERCEL_CLIENT_ID || !process.env.VERCEL_CLIENT_SECRET) {
+    return res.status(503).json({
+      error: 'Integration not configured',
+      message: 'Set VERCEL_CLIENT_ID and VERCEL_CLIENT_SECRET from the Vercel Integration Console.',
+    });
+  }
+
   if (!code || !configurationId) {
     return res.status(400).json({ error: 'Missing required parameters' });
   }
@@ -29,7 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         client_id: process.env.VERCEL_CLIENT_ID!,
         client_secret: process.env.VERCEL_CLIENT_SECRET!,
         code: code as string,
-        redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/integration/callback`,
+        redirect_uri: `${appUrl()}/api/integration/callback`,
       }),
     });
 
@@ -51,7 +58,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/vercel`,
+          url: `${appUrl()}/api/webhooks/vercel`,
           events: ['deployment.created', 'deployment.succeeded'],
         }),
       });
@@ -91,4 +98,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       message: error instanceof Error ? error.message : 'Unknown error'
     });
   }
+}
+
+function appUrl(): string {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  return 'http://localhost:3000';
 }
