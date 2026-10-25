@@ -1,0 +1,573 @@
+{
+  "generatedAt": "2026-10-25T20:14:28.952Z",
+  "mode": "tiered (rules + flash -> argon)",
+  "dataset": {
+    "name": "hate-extremism",
+    "synthetic": true,
+    "caveat": "SMALL SYNTHETIC hand-written set (n=20: 10 abusive, 10 tricky benign counter-speech/educational/news). Sanity check for multi-policy hate & violent extremism detection and counter-speech exemptions, not production accuracy.",
+    "total": 20,
+    "abusive": 10,
+    "benign": 10
+  },
+  "models": {
+    "fast": {
+      "model": "gemini-3.8-flash",
+      "thinkingLevel": "low"
+    },
+    "deep": {
+      "model": "gemini-4-argon",
+      "thinkingLevel": "high"
+    },
+    "escalationThreshold": 0.4
+  },
+  "positiveThreshold": 0.3,
+  "pricingUsdPer1M": {
+    "gemini-4-argon": {
+      "input": 2,
+      "output": 10,
+      "note": "AI Studio price, through Nov 30 2026"
+    },
+    "gemini-3.8-flash": {
+      "input": 0.75,
+      "output": 3.75,
+      "note": "introductory price, through Dec 31 2026"
+    }
+  },
+  "wallClockSec": 55.537,
+  "metrics": {
+    "tp": 10,
+    "fp": 0,
+    "tn": 10,
+    "fn": 0,
+    "precision": 1,
+    "recall": 1,
+    "falsePositiveRate": 0,
+    "accuracy": 1,
+    "categoryAccuracyOnTruePositives": 1,
+    "escalationRate": 0.55,
+    "latencyMs": {
+      "p50": 7565,
+      "p95": 15092
+    },
+    "totalCostUsd": 0.1320425,
+    "costPerScanUsd": 0.006602125
+  },
+  "perSample": [
+    {
+      "id": "hate-01-antisemitic-conspiracy",
+      "label": "abusive",
+      "expected": "hate_harassment",
+      "kind": "antisemitic conspiracy landing page",
+      "url": "https://northern-covenant-dispatch.vercel.app",
+      "predictedScore": 0.99,
+      "predictedPositive": true,
+      "predictedCategory": "hate_harassment",
+      "rulesScore": 0.3,
+      "rulesCategoryHint": "hate_harassment",
+      "flash": {
+        "score": 1,
+        "category": "hate_harassment",
+        "latencyMs": 3732,
+        "fallback": false
+      },
+      "argon": {
+        "score": 0.99,
+        "category": "hate_harassment",
+        "latencyMs": 11265,
+        "fallback": false
+      },
+      "escalated": true,
+      "escalationReason": "fast score 1.00 >= 0.4",
+      "decidedBy": "argon",
+      "totalLatencyMs": 15000,
+      "costUsd": 0.01289625
+    },
+    {
+      "id": "hate-02-anti-muslim-invasion",
+      "label": "abusive",
+      "expected": "hate_harassment",
+      "kind": "anti-Muslim invasion page",
+      "url": "https://europa-watch-shield.vercel.app",
+      "predictedScore": 0.99,
+      "predictedPositive": true,
+      "predictedCategory": "hate_harassment",
+      "rulesScore": 0.3,
+      "rulesCategoryHint": "hate_harassment",
+      "flash": {
+        "score": 0.99,
+        "category": "hate_harassment",
+        "latencyMs": 3056,
+        "fallback": false
+      },
+      "argon": {
+        "score": 0.99,
+        "category": "hate_harassment",
+        "latencyMs": 10150,
+        "fallback": false
+      },
+      "escalated": true,
+      "escalationReason": "fast score 0.99 >= 0.4",
+      "decidedBy": "argon",
+      "totalLatencyMs": 13207,
+      "costUsd": 0.01066025
+    },
+    {
+      "id": "hate-03-anti-immigrant-dehumanizing",
+      "label": "abusive",
+      "expected": "hate_harassment",
+      "kind": "anti-immigrant dehumanizing blog",
+      "url": "https://borderline-truth-blog.vercel.app",
+      "predictedScore": 0.98,
+      "predictedPositive": true,
+      "predictedCategory": "hate_harassment",
+      "rulesScore": 0.3,
+      "rulesCategoryHint": "hate_harassment",
+      "flash": {
+        "score": 0.98,
+        "category": "hate_harassment",
+        "latencyMs": 3240,
+        "fallback": false
+      },
+      "argon": {
+        "score": 0.98,
+        "category": "hate_harassment",
+        "latencyMs": 12508,
+        "fallback": false
+      },
+      "escalated": true,
+      "escalationReason": "fast score 0.98 >= 0.4",
+      "decidedBy": "argon",
+      "totalLatencyMs": 15748,
+      "costUsd": 0.0126
+    },
+    {
+      "id": "hate-04-anti-lgbt-harassment",
+      "label": "abusive",
+      "expected": "hate_harassment",
+      "kind": "anti-LGBT harassment page targeting a fictional person",
+      "url": "https://oakridge-parents-watch.vercel.app",
+      "predictedScore": 0.99,
+      "predictedPositive": true,
+      "predictedCategory": "hate_harassment",
+      "rulesScore": 0.3,
+      "rulesCategoryHint": "hate_harassment",
+      "flash": {
+        "score": 0.98,
+        "category": "hate_harassment",
+        "latencyMs": 1886,
+        "fallback": false
+      },
+      "argon": {
+        "score": 0.99,
+        "category": "hate_harassment",
+        "latencyMs": 9908,
+        "fallback": false
+      },
+      "escalated": true,
+      "escalationReason": "fast score 0.98 >= 0.4",
+      "decidedBy": "argon",
+      "totalLatencyMs": 11794,
+      "costUsd": 0.011117
+    },
+    {
+      "id": "hate-05-journalist-doxxing",
+      "label": "abusive",
+      "expected": "hate_harassment",
+      "kind": "doxxing page of a fictional journalist",
+      "url": "https://traitor-dossier-files.vercel.app",
+      "predictedScore": 0.98,
+      "predictedPositive": true,
+      "predictedCategory": "hate_harassment",
+      "rulesScore": 0,
+      "flash": {
+        "score": 0.85,
+        "category": "hate_harassment",
+        "latencyMs": 2835,
+        "fallback": false
+      },
+      "argon": {
+        "score": 0.98,
+        "category": "hate_harassment",
+        "latencyMs": 10343,
+        "fallback": false
+      },
+      "escalated": true,
+      "escalationReason": "fast score 0.85 >= 0.4",
+      "decidedBy": "argon",
+      "totalLatencyMs": 13180,
+      "costUsd": 0.010467500000000001
+    },
+    {
+      "id": "extremism-06-shooter-saints-fanpage",
+      "label": "abusive",
+      "expected": "violent_extremism",
+      "kind": "mass-shooter glorification saints fan page",
+      "url": "https://hall-of-saints-archive.vercel.app",
+      "predictedScore": 0.99,
+      "predictedPositive": true,
+      "predictedCategory": "violent_extremism",
+      "rulesScore": 0.3,
+      "rulesCategoryHint": "violent_extremism",
+      "flash": {
+        "score": 1,
+        "category": "violent_extremism",
+        "latencyMs": 3303,
+        "fallback": false
+      },
+      "argon": {
+        "score": 0.99,
+        "category": "violent_extremism",
+        "latencyMs": 9861,
+        "fallback": false
+      },
+      "escalated": true,
+      "escalationReason": "fast score 1.00 >= 0.4",
+      "decidedBy": "argon",
+      "totalLatencyMs": 13165,
+      "costUsd": 0.010484
+    },
+    {
+      "id": "extremism-07-race-war-militia",
+      "label": "abusive",
+      "expected": "violent_extremism",
+      "kind": "race-war militia recruitment page",
+      "url": "https://iron-vanguard-militia.vercel.app",
+      "predictedScore": 0.99,
+      "predictedPositive": true,
+      "predictedCategory": "violent_extremism",
+      "rulesScore": 0.3,
+      "rulesCategoryHint": "violent_extremism",
+      "flash": {
+        "score": 0.99,
+        "category": "violent_extremism",
+        "latencyMs": 3355,
+        "fallback": false
+      },
+      "argon": {
+        "score": 0.99,
+        "category": "violent_extremism",
+        "latencyMs": 11280,
+        "fallback": false
+      },
+      "escalated": true,
+      "escalationReason": "fast score 0.99 >= 0.4",
+      "decidedBy": "argon",
+      "totalLatencyMs": 14636,
+      "costUsd": 0.012143749999999998
+    },
+    {
+      "id": "extremism-08-manifesto-excerpt",
+      "label": "abusive",
+      "expected": "violent_extremism",
+      "kind": "extremist manifesto excerpt page",
+      "url": "https://siege-of-the-west-manifesto.vercel.app",
+      "predictedScore": 1,
+      "predictedPositive": true,
+      "predictedCategory": "violent_extremism",
+      "rulesScore": 0.3,
+      "rulesCategoryHint": "violent_extremism",
+      "flash": {
+        "score": 0.99,
+        "category": "violent_extremism",
+        "latencyMs": 2481,
+        "fallback": false
+      },
+      "argon": {
+        "score": 1,
+        "category": "violent_extremism",
+        "latencyMs": 10006,
+        "fallback": false
+      },
+      "escalated": true,
+      "escalationReason": "fast score 0.99 >= 0.4",
+      "decidedBy": "argon",
+      "totalLatencyMs": 12487,
+      "costUsd": 0.009859
+    },
+    {
+      "id": "extremism-09-purge-game",
+      "label": "abusive",
+      "expected": "violent_extremism",
+      "kind": "extremist browser game level: purge description",
+      "url": "https://homeland-purge-sim.vercel.app",
+      "predictedScore": 1,
+      "predictedPositive": true,
+      "predictedCategory": "violent_extremism",
+      "rulesScore": 0.3,
+      "rulesCategoryHint": "violent_extremism",
+      "flash": {
+        "score": 0.99,
+        "category": "violent_extremism",
+        "latencyMs": 3430,
+        "fallback": false
+      },
+      "argon": {
+        "score": 1,
+        "category": "violent_extremism",
+        "latencyMs": 11661,
+        "fallback": false
+      },
+      "escalated": true,
+      "escalationReason": "fast score 0.99 >= 0.4",
+      "decidedBy": "argon",
+      "totalLatencyMs": 15092,
+      "costUsd": 0.012046250000000001
+    },
+    {
+      "id": "hate-10-discord-hate-raid-bot",
+      "label": "abusive",
+      "expected": "hate_harassment",
+      "kind": "Discord-bot automation landing page that auto-posts hate raids",
+      "url": "https://swarmraid-bot-cloud.vercel.app",
+      "predictedScore": 1,
+      "predictedPositive": true,
+      "predictedCategory": "hate_harassment",
+      "rulesScore": 0.3,
+      "rulesCategoryHint": "hate_harassment",
+      "flash": {
+        "score": 1,
+        "category": "hate_harassment",
+        "latencyMs": 3420,
+        "fallback": false
+      },
+      "argon": {
+        "score": 1,
+        "category": "hate_harassment",
+        "latencyMs": 9292,
+        "fallback": false
+      },
+      "escalated": true,
+      "escalationReason": "fast score 1.00 >= 0.4",
+      "decidedBy": "argon",
+      "totalLatencyMs": 12712,
+      "costUsd": 0.009734
+    },
+    {
+      "id": "benign-01-hate-crime-trial-news",
+      "label": "benign",
+      "expected": "benign",
+      "kind": "news article on a hate crime trial",
+      "url": "https://northbridge-gazette.example.com/news/federal-hate-crime-verdict",
+      "predictedScore": 0,
+      "predictedPositive": false,
+      "predictedCategory": "benign",
+      "rulesScore": 0,
+      "flash": {
+        "score": 0,
+        "category": "benign",
+        "latencyMs": 2272,
+        "fallback": false
+      },
+      "argon": null,
+      "escalated": false,
+      "decidedBy": "flash",
+      "totalLatencyMs": 2272,
+      "costUsd": 0.00115275
+    },
+    {
+      "id": "benign-02-holocaust-museum-exhibit",
+      "label": "benign",
+      "expected": "benign",
+      "kind": "Holocaust museum exhibit page",
+      "url": "https://memorial-history-museum.example.org/exhibits/propaganda-and-persecution",
+      "predictedScore": 0,
+      "predictedPositive": false,
+      "predictedCategory": "benign",
+      "rulesScore": 0,
+      "flash": {
+        "score": 0,
+        "category": "benign",
+        "latencyMs": 2065,
+        "fallback": false
+      },
+      "argon": null,
+      "escalated": false,
+      "decidedBy": "flash",
+      "totalLatencyMs": 2065,
+      "costUsd": 0.00123825
+    },
+    {
+      "id": "benign-03-history-of-kkk-lesson",
+      "label": "benign",
+      "expected": "benign",
+      "kind": "history of the KKK lesson",
+      "url": "https://open-history-curriculum.example.edu/us-history/reconstruction-and-the-kkk",
+      "predictedScore": 0,
+      "predictedPositive": false,
+      "predictedCategory": "benign",
+      "rulesScore": 0,
+      "flash": {
+        "score": 0,
+        "category": "benign",
+        "latencyMs": 2246,
+        "fallback": false
+      },
+      "argon": null,
+      "escalated": false,
+      "decidedBy": "flash",
+      "totalLatencyMs": 2246,
+      "costUsd": 0.00127425
+    },
+    {
+      "id": "benign-04-hate-symbol-glossary",
+      "label": "benign",
+      "expected": "benign",
+      "kind": "ADL-style hate-symbol glossary (fictional org)",
+      "url": "https://civic-watch-institute.example.org/glossary/extremist-phrases",
+      "predictedScore": 0.02,
+      "predictedPositive": false,
+      "predictedCategory": "benign",
+      "rulesScore": 0.3,
+      "rulesCategoryHint": "violent_extremism",
+      "flash": {
+        "score": 0,
+        "category": "benign",
+        "latencyMs": 2425,
+        "fallback": false
+      },
+      "argon": {
+        "score": 0.02,
+        "category": "benign",
+        "latencyMs": 5140,
+        "fallback": false
+      },
+      "escalated": true,
+      "escalationReason": "rules score 0.30 >= 0.30",
+      "decidedBy": "argon",
+      "totalLatencyMs": 7565,
+      "costUsd": 0.00870125
+    },
+    {
+      "id": "benign-05-counterspeech-campaign",
+      "label": "benign",
+      "expected": "benign",
+      "kind": "counter-speech campaign page quoting slogans to rebut them",
+      "url": "https://truth-over-hate.example.org/debunking-conspiracy-myths",
+      "predictedScore": 0,
+      "predictedPositive": false,
+      "predictedCategory": "benign",
+      "rulesScore": 0,
+      "flash": {
+        "score": 0,
+        "category": "benign",
+        "latencyMs": 2209,
+        "fallback": false
+      },
+      "argon": null,
+      "escalated": false,
+      "decidedBy": "flash",
+      "totalLatencyMs": 2209,
+      "costUsd": 0.00132375
+    },
+    {
+      "id": "benign-06-academic-radicalisation-paper",
+      "label": "benign",
+      "expected": "benign",
+      "kind": "academic paper abstract on online radicalisation",
+      "url": "https://journal-digital-sociology.example.edu/articles/2026/online-radicalisation-pathways",
+      "predictedScore": 0,
+      "predictedPositive": false,
+      "predictedCategory": "benign",
+      "rulesScore": 0,
+      "flash": {
+        "score": 0,
+        "category": "benign",
+        "latencyMs": 1881,
+        "fallback": false
+      },
+      "argon": null,
+      "escalated": false,
+      "decidedBy": "flash",
+      "totalLatencyMs": 1881,
+      "costUsd": 0.00115575
+    },
+    {
+      "id": "benign-07-moderation-policy-page",
+      "label": "benign",
+      "expected": "benign",
+      "kind": "content-moderation policy page",
+      "url": "https://cloudforge-hosting.example.com/trust/acceptable-use-policy",
+      "predictedScore": 0,
+      "predictedPositive": false,
+      "predictedCategory": "benign",
+      "rulesScore": 0,
+      "flash": {
+        "score": 0,
+        "category": "benign",
+        "latencyMs": 2083,
+        "fallback": false
+      },
+      "argon": null,
+      "escalated": false,
+      "decidedBy": "flash",
+      "totalLatencyMs": 2083,
+      "costUsd": 0.0013215
+    },
+    {
+      "id": "benign-08-film-review-neonazi-drama",
+      "label": "benign",
+      "expected": "benign",
+      "kind": "film review of a movie about neo-Nazis",
+      "url": "https://cinepulse-magazine.example.com/reviews/the-hollow-banner-2026",
+      "predictedScore": 0,
+      "predictedPositive": false,
+      "predictedCategory": "benign",
+      "rulesScore": 0,
+      "flash": {
+        "score": 0,
+        "category": "benign",
+        "latencyMs": 3153,
+        "fallback": false
+      },
+      "argon": null,
+      "escalated": false,
+      "decidedBy": "flash",
+      "totalLatencyMs": 3153,
+      "costUsd": 0.00133125
+    },
+    {
+      "id": "benign-09-deradicalisation-helpline",
+      "label": "benign",
+      "expected": "benign",
+      "kind": "deradicalisation help-line page",
+      "url": "https://exit-hate-support.example.org/get-help",
+      "predictedScore": 0,
+      "predictedPositive": false,
+      "predictedCategory": "benign",
+      "rulesScore": 0,
+      "flash": {
+        "score": 0,
+        "category": "benign",
+        "latencyMs": 1963,
+        "fallback": false
+      },
+      "argon": null,
+      "escalated": false,
+      "decidedBy": "flash",
+      "totalLatencyMs": 1963,
+      "costUsd": 0.00124275
+    },
+    {
+      "id": "benign-10-game-studio-community-guidelines",
+      "label": "benign",
+      "expected": "benign",
+      "kind": "a game studio community guidelines banning hate",
+      "url": "https://starforge-interactive.example.com/community/code-of-conduct",
+      "predictedScore": 0,
+      "predictedPositive": false,
+      "predictedCategory": "benign",
+      "rulesScore": 0,
+      "flash": {
+        "score": 0,
+        "category": "benign",
+        "latencyMs": 2274,
+        "fallback": false
+      },
+      "argon": null,
+      "escalated": false,
+      "decidedBy": "flash",
+      "totalLatencyMs": 2274,
+      "costUsd": 0.001293
+    }
+  ]
+}
