@@ -9,13 +9,13 @@ export default function AgentAvatar({ state = 'idle', message = 'Ready to inspec
   variant?: 'panel' | 'conversation';
 }) {
   return (
-    <section className={`agent-avatar-panel${variant === 'conversation' ? ' agent-avatar-conversation' : ''}`} aria-label="Trust and Safety agent">
+    <section className={`agent-avatar-panel${variant === 'conversation' ? ' agent-avatar-conversation' : ''}`} aria-label="Argon Guard agent">
       <Script src="/morph-bot/morph-bot.js" type="module" strategy="afterInteractive" />
       <div className="agent-avatar-stage" aria-hidden="true">
         {createElement('morph-bot', {
           state, shape: 'blob', size: '160', material: 'rainbow-glass',
           'glass-preset': 'argon-neon', 'eye-color': '#f1f5ff', 'follow-pointer': '',
-          label: 'Trust and Safety assistant',
+          label: 'Argon Guard assistant',
         })}
       </div>
       <div className="agent-avatar-copy">

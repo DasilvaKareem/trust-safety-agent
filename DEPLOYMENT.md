@@ -1,4 +1,4 @@
-# Trust & Safety Agent - Deployment Guide
+# Argon Guard - Deployment Guide
 
 ## ✅ What's Been Built
 
@@ -22,7 +22,7 @@ A complete Vercel integration MVP that scans every deployment for phishing and a
 Go to: https://vercel.com/dashboard/integrations/console
 
 Create new integration with:
-- **Name**: Trust & Safety Agent
+- **Name**: Argon Guard
 - **Redirect URL**: 
   - Dev: `http://localhost:3000/api/integration/callback`
   - Prod: `https://your-domain.vercel.app/api/integration/callback`

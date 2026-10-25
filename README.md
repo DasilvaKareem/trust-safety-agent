@@ -1,4 +1,4 @@
-# Trust & Safety Agent for Vercel
+# Argon Guard
 
 A Vercel integration that automatically scans every deployment for phishing and abuse using rules-based detection plus Google Gemini vision analysis. The durable deep scan, the daily re-scan and the scanning agent run on [eve](https://www.npmjs.com/package/eve), Vercel's filesystem-first framework for durable backend AI agents (see [What uses eve](#what-uses-eve)).
 
@@ -176,7 +176,7 @@ For local dev:
 ### 3. Create Vercel Integration
 1. Go to [Vercel Integration Console](https://vercel.com/dashboard/integrations/console)
 2. Create new integration:
-   - **Name**: Trust & Safety Agent
+   - **Name**: Argon Guard
    - **Redirect URL**: `http://localhost:3000/api/integration/callback` (dev) / your production URL
    - **Webhook URL**: `http://localhost:3000/api/webhooks/vercel` (dev) / your production URL
    - **Events**: `deployment.created`, `deployment.ready`

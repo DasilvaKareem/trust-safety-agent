@@ -147,7 +147,7 @@ export default function DemoPage() {
           Demo Mode
         </h1>
         <p style={{ color: '#666' }}>
-          Test the Trust & Safety scanner with sample pages or custom URLs
+          Test the Argon Guard scanner with sample pages or custom URLs
         </p>
       </header>
 

@@ -67,7 +67,7 @@ export default function Onboarding({ user, googleReady, vercelReady, schedulerRe
     if (error) return error;
     if (agentNotice) return agentNotice;
     if (step === 0) return tour === 0
-      ? 'Hi, I’m your site’s new companion. I’ll look for phishing, impersonation, and suspicious content, then explain what I find. Want me to show you how it works?'
+      ? 'Hi, I’m Argon Guard, your site’s new companion. I’ll look for phishing, impersonation, and suspicious content, then explain what I find. Want me to show you how it works?'
       : 'For example, a lookalike domain asking for passwords could be impersonating a brand. I’d show you the suspicious signals and let you decide what to do. I only read your public pages—I never change or take down your site. Ready to connect yours?';
     if (step === 1) return googleReady
       ? 'Let’s save a private space for your sites and scan history. Continue with Google; I only need your name and email, not access to Gmail or Drive. Then we’ll connect your site.'
@@ -94,9 +94,9 @@ export default function Onboarding({ user, googleReady, vercelReady, schedulerRe
     return `Ownership confirmed. Enable monitoring and I’ll check ${site.name} ${site.kind === 'vercel' ? 'on new production deployments' : 'approximately once a day'}.`;
   }
   const guide = agentMessage();
-  return <><Head><title>Meet your agent · Trust & Safety</title><meta name="description" content="Connect your site and meet your personal Trust & Safety scanning agent." /></Head>
+  return <><Head><title>Meet your agent · Argon Guard</title><meta name="description" content="Connect your site and meet your personal Argon Guard scanning agent." /></Head>
     <main className="onboarding-shell welcome-shell">
-      <header className="flow-header"><Link className="flow-brand" href="/onboarding"><span className="brand-mark">✦</span> Trust & Safety</Link><div>{user ? <><Link href="/">My dashboard ↗</Link><form action="/api/auth/logout" method="post"><button className="text-button">Sign out</button></form></> : <button className="text-button" onClick={() => { setStep(1); setError(''); }}>Sign in</button>}</div></header>
+      <header className="flow-header"><Link className="flow-brand" href="/onboarding"><span className="brand-mark">✦</span> Argon Guard</Link><div>{user ? <><Link href="/">My dashboard ↗</Link><form action="/api/auth/logout" method="post"><button className="text-button">Sign out</button></form></> : <button className="text-button" onClick={() => { setStep(1); setError(''); }}>Sign in</button>}</div></header>
       <div className="welcome-layout">
         <nav className="welcome-progress" aria-label="Onboarding progress"><ol>{steps.map((label, i) => <li key={label} className={i === step ? 'current' : i < step ? 'done' : ''} aria-label={`${label}${i < step ? ', complete' : ''}`} aria-current={i === step ? 'step' : undefined}><span /></li>)}</ol><span>{step + 1} / 5 · {steps[step]}</span></nav>
         <aside className="welcome-guide">

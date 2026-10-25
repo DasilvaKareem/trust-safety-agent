@@ -1,7 +1,7 @@
 {
-  "name": "trust-safety-agent",
+  "name": "argon-guard",
   "version": "1.0.0",
-  "description": "Trust & Safety agent for Vercel projects: scans every deploy for phishing and abuse with rules plus Gemini, built with eve.",
+  "description": "Argon Guard scans Vercel projects: scans every deploy for phishing and abuse with rules plus Gemini, built with eve.",
   "type": "module",
   "scripts": {
     "dev": "next dev",

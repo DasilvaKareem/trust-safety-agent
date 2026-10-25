@@ -27,10 +27,10 @@ interface DashboardProps {
 export default function Dashboard({ recentDeployments, reviewQueue, stats, user, sites }: DashboardProps) {
   return (
     <div className="container">
-      <nav className="workspace-nav"><Link className="flow-brand" href="/"><span className="brand-mark">✦</span> Trust & Safety</Link><div><span>{user.name}’s workspace</span><form method="post" action="/api/auth/logout"><button className="text-button">Sign out</button></form></div></nav>
+      <nav className="workspace-nav"><Link className="flow-brand" href="/"><span className="brand-mark">✦</span> Argon Guard</Link><div><span>{user.name}’s workspace</span><form method="post" action="/api/auth/logout"><button className="text-button">Sign out</button></form></div></nav>
       <header style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '0.5rem' }}>
-          Trust & Safety Dashboard
+          Argon Guard Dashboard
         </h1>
         <p style={{ color: '#666' }}>
           Vercel deployment phishing and abuse detection
