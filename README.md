@@ -40,12 +40,17 @@ On every deployment webhook:
 - **Metadata signals**: CLI deploys without git source, new accounts (<7 days)
 - **Scoring**: Produces a 0-1 risk score with specific reasons
 
-### 2. Deep Gemini Scan (Async, ~60s)
-Scheduled for medium/high-risk deployments:
-- Fetches deployed HTML
-- Takes screenshot (stubbed in MVP)
-- Sends to **Google Gemini 2.0 Flash** for multimodal classification
+### 2. Two-tier Gemini Scan
+- **Tier 1, every deploy:** `gemini-3.8-flash` (low thinking, ~3.5 s, ~$0.0008/scan)
+- **Tier 2, escalation only:** `gemini-4-argon` with heavy thinking (`thinkingLevel: 'high'`, ~10 s, ~$0.008/scan) when the Flash score is >= 0.4, the rules score is >= 0.3, or tier 1 fails
+- Once Argon runs, its verdict decides the status; rules only decide whether to escalate
 - Returns structured JSON: score, impersonated brand, reasons
+- Screenshot capture is still stubbed (HTML only)
+
+Configure with `GEMINI_FAST_MODEL`, `GEMINI_DEEP_MODEL`, `GEMINI_FAST_THINKING_LEVEL`, `GEMINI_DEEP_THINKING_LEVEL` and `GEMINI_ESCALATION_THRESHOLD`. "Gemini 3.8 Flash Cyber" is only listed on Google Cloud's Agent Platform (Vertex AI), not in the Gemini Developer API, so the AI Studio key uses `gemini-3.8-flash`.
+
+### Benchmark
+`npm run bench` runs a **synthetic** labeled set (`bench/dataset.ts`: 24 phishing kits, 23 benign pages including hard cases such as legitimate login pages and phishing-awareness articles) through rules-only, Flash-only, Argon-only, rules+Argon and tiered configs. Results are in [`bench/results.md`](bench/results.md) and `bench/results.json`.
 
 ### 3. Clustering for Repeat Offenders
 - **Exact hash**: SHA-256 of page content
@@ -74,7 +79,7 @@ Scheduled for medium/high-risk deployments:
 - **Framework**: [eve](https://www.npmjs.com/package/eve) - Vercel's durable agent framework
 - **Frontend**: Next.js 16 + React 19
 - **Storage**: Upstash Redis via `@vercel/kv` (in-memory fallback for local dev)
-- **Model**: Google Gemini 2.0 Flash via `@ai-sdk/google`
+- **Models**: Gemini 3.8 Flash (tier 1) and Gemini 4 Argon with heavy thinking (tier 2) via `@ai-sdk/google`
 - **Deployment**: Vercel (Workflow + Sandbox + Cron)
 
 ## Setup
@@ -219,10 +224,12 @@ Edit `lib/rules/index.ts`:
 - Add patterns to typosquat regex list
 - Adjust score weights in `computeRulesScore()`
 
-### Change Gemini Model
-Edit `lib/gemini/index.ts`:
-```typescript
-const model = google('gemini-2.0-flash-exp-001'); // or another model
+### Change Gemini Models
+Set env vars (defaults shown):
+```bash
+GEMINI_FAST_MODEL=gemini-3.8-flash
+GEMINI_DEEP_MODEL=gemini-4-argon
+GEMINI_DEEP_THINKING_LEVEL=high
 ```
 
 ### Add Screenshot Capture

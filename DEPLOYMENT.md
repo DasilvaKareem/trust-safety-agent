@@ -4,7 +4,7 @@
 
 A complete Vercel integration MVP that scans every deployment for phishing and abuse using:
 1. **Fast rules-based detection** (login forms, brand keywords, typosquats)
-2. **Google Gemini 2.0 Flash** for deep vision analysis
+2. **Two-tier Gemini scan**: Gemini 3.8 Flash on every deploy, escalating to Gemini 4 Argon (heavy thinking) when risky
 3. **SimHash clustering** for repeat offender detection
 4. **Next.js dashboard** with review queue and metrics
 5. **Demo mode** with sample phishing pages
@@ -37,7 +37,7 @@ Copy the Client ID and Client Secret.
 
 Go to: https://aistudio.google.com/app/apikey
 
-Create an API key for Gemini 2.0 Flash.
+Create an API key (used for both gemini-3.8-flash and gemini-4-argon).
 
 ### 3. Set Up Environment Variables
 
@@ -105,7 +105,7 @@ npm test
 
 ### Gemini Analysis (`lib/gemini/`)
 - Fetches deployed page HTML
-- Sends to Gemini 2.0 Flash with vision capabilities
+- Sends to Gemini 3.8 Flash, escalating to Gemini 4 Argon with heavy thinking
 - Returns structured JSON: score, impersonated brand, reasons
 - Gracefully handles missing API key (returns mock result)
 
@@ -135,11 +135,10 @@ npm test
 - **Human-in-the-loop**: Built-in approval flows (for future auto-pause)
 - **Vercel-native**: Optimal integration with platform
 
-### Why Gemini 2.0 Flash?
-- **Multimodal**: Can analyze both HTML and screenshots
-- **Fast**: ~2-5s response time
-- **Structured output**: Direct JSON schema support
-- **Cost-effective**: Flash variant balances speed and cost
+### Why Flash then Argon?
+- **Flash on every deploy**: ~3.5 s and ~$0.0008 per scan on the synthetic benchmark
+- **Argon only when needed**: heavy thinking (~10 s, ~$0.008 per scan) for borderline or rule-flagged deploys
+- **Structured output**: JSON schema via the AI SDK
 
 ### Why SimHash?
 - **Near-duplicate detection**: Catches template variations
