@@ -138,8 +138,8 @@ npm test
 - **Webhook secret**: Vercel signs with HMAC-SHA1 over the raw body. Set `VERCEL_INTEGRATION_WEBHOOK_SECRET` to the integration Client Secret, or to the account-webhook secret.
 
 ### Why Flash then Argon?
-- **Flash on every deploy**: ~3.5 s and ~$0.0008 per scan on the synthetic benchmark
-- **Argon only when needed**: heavy thinking (~10 s, ~$0.008 per scan) for borderline or rule-flagged deploys
+- **Flash on every deploy**: about 3.6 s per scan. Cost is about $0.003 per scan on real PhreshPhish pages and about $0.0008 on the small synthetic set. On real pages Flash had AP 0.960 with 0 false positives in 125 benign pages.
+- **Argon only when needed**: heavy thinking (about 10 s and about $0.014 per scan on real pages) for borderline or rule-flagged deploys. Tiered escalated 36% of real pages and cost about $0.009 per scan. See `bench/results.md`.
 - **Structured output**: JSON schema via the AI SDK
 
 ### Why SimHash?

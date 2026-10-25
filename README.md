@@ -59,17 +59,44 @@ Score is capped at 1.0. `__tests__/rules-holdout.test.ts` checks the rules again
 Configure with `GEMINI_FAST_MODEL`, `GEMINI_DEEP_MODEL`, `GEMINI_FAST_THINKING_LEVEL`, `GEMINI_DEEP_THINKING_LEVEL` and `GEMINI_ESCALATION_THRESHOLD`. "Gemini 3.8 Flash Cyber" is only listed on Google Cloud's Agent Platform (Vertex AI), not in the Gemini Developer API, so the AI Studio key uses `gemini-3.8-flash`.
 
 ### Benchmark
-`npm run bench` runs a **synthetic** labeled set (`bench/dataset.ts`: 24 phishing kits, 23 benign pages including hard cases such as legitimate login pages and phishing-awareness articles) through rules-only, Flash-only, Argon-only, rules+Argon and tiered configs. Results are in [`bench/results.md`](bench/results.md) and `bench/results.json`. Latest run (Oct 25, 2026):
+Full write-up: [`bench/results.md`](bench/results.md). There are two datasets, reported separately.
+
+**Real-world: [PhreshPhish](https://huggingface.co/datasets/phreshphish/phreshphish)** ([arXiv:2507.10854](https://arxiv.org/abs/2507.10854), CC BY 4.0, anti-phishing research only). The sample is 250 archived real pages from the paper's "full" benchmark split, 125 phishing and 125 benign, drawn at random with seed 42 (Oct 25, 2026). Pages are stored HTML from the dataset; nothing fetches a live phishing page.
+
+| Config | Precision | Recall | F1 | FPR | AP | p50 latency | Cost / scan |
+|---|---|---|---|---|---|---|---|
+| rules-only | 57.1% | 3.2% | 0.061 | 2.4% | 0.511 | 0.5 ms | $0 |
+| flash-only | 100.0% | 71.2% | 0.832 | 0.0% | 0.960 | 3625 ms | $0.00286 |
+| argon-only | 98.9% | 75.2% | 0.855 | 0.8% | 0.919 | 9535 ms | $0.01387 |
+| rules+argon | 95.9% | 75.2% | 0.843 | 3.2% | 0.916 | 9535 ms | $0.01387 |
+| tiered (36% escalated) | 100.0% | 69.6% | 0.821 | 0.0% | 0.956 | 3998 ms | $0.00873 |
+
+Published baselines on the full PhreshPhish benchmark (paper Table 4, 24% base rate) are AP 0.978 for fine-tuned GTE and AP 0.922 for zero-shot Gemini-2.5-Pro. Our run used a smaller, balanced sample and only the first 8k chars of HTML, so the numbers are not directly comparable; see `bench/results.md` for details.
+
+Takeaways:
+- The rules depend on Vercel deployment metadata, so on raw pages they add almost nothing.
+- Flash gives the best precision for the cost.
+- Most misses are scam pages with no form in the first 8k chars (see `bench/results.md` for the planned fix).
+
+**Demo set (synthetic):** `bench/dataset.ts` holds 24 hand-written phishing kits and 23 benign pages. This set is a sanity check, not an accuracy claim.
 
 | Config | Precision | Recall | F1 | FPR | p50 latency | Cost / scan |
 |---|---|---|---|---|---|---|
-| rules-only | 100.0% | 95.8% | 0.979 | 0.0% | 0.15 ms | $0 |
-| flash-only | 100.0% | 100.0% | 1.000 | 0.0% | 4030 ms | $0.00079 |
-| argon-only | 100.0% | 100.0% | 1.000 | 0.0% | 8781 ms | $0.00788 |
-| rules+argon | 100.0% | 100.0% | 1.000 | 0.0% | 8781 ms | $0.00788 |
-| tiered (rules+flash -> argon) | 100.0% | 100.0% | 1.000 | 0.0% | 10091 ms | $0.00538 |
+| rules-only | 100.0% | 95.8% | 0.979 | 0.0% | 0.16 ms | $0 |
+| flash-only | 100.0% | 100.0% | 1.000 | 0.0% | 3704 ms | $0.00077 |
+| argon-only | 100.0% | 100.0% | 1.000 | 0.0% | 9378 ms | $0.00804 |
+| tiered (51% escalated) | 100.0% | 100.0% | 1.000 | 0.0% | 11369 ms | $0.00559 |
 
-Tiered escalates **51.1%** of samples to Argon: all 24 phishing pages and none of the 23 benign ones. Before the rules rewrite, rules-only had a 34.8% FPR and 68.1% of samples escalated. The one remaining rules-only miss (phish-20, an Okta look-alike with a same-site form and no urgency) is caught by Flash. The set is small and synthetic, so treat 0% FPR as a sanity check, not a production rate. A legitimate shop checkout that collects card numbers, for example, still scores 0.30 and goes to review.
+A legitimate shop checkout that collects card numbers still scores 0.30 and is sent to review.
+
+Run the benchmarks:
+```bash
+npm run bench -- --dataset demo                  # synthetic set
+python3 scripts/prepare_phreshphish.py           # needs huggingface_hub + pyarrow; writes bench/data/ (gitignored)
+npm run bench -- --dataset phreshphish --estimate # print the expected Gemini cost first
+npm run bench -- --dataset phreshphish           # about $4 for 250 pages
+npm run bench -- --dataset phreshphish --rules-only
+```
 
 ### What uses eve
 - `agent/agent.ts`: the eve agent (Gemini 3.8 Flash, direct `@ai-sdk/google` provider).
