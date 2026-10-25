@@ -432,13 +432,32 @@ is performed.
 
 ### Connect Vercel
 
-Create a connectable-account integration, set its redirect URL to
-`/api/integration/callback`, and set the webhook URL to `/api/webhooks/vercel` in
-the Integration Console. Subscribe to `deployment.ready` and
-`integration-configuration.removed`. Grant read access to projects and deployments.
-Set `VERCEL_CLIENT_ID`, `VERCEL_CLIENT_SECRET`, and `VERCEL_INTEGRATION_SLUG`.
+Register an Argon Guard **connectable-account integration** in the
+[Vercel Integration Console](https://vercel.com/dashboard/integrations/console).
+Hosting the app on Vercel does not create this OAuth integration automatically.
+Use these production settings:
+
+| Setting | Value |
+| --- | --- |
+| Redirect URL | `https://argon-guard.vercel.app/api/integration/callback` |
+| Configuration URL | `https://argon-guard.vercel.app/onboarding?step=connect` |
+| Webhook URL | `https://argon-guard.vercel.app/api/webhooks/vercel` |
+| Permissions | Projects: Read; Deployments: Read |
+| Webhook events | `deployment.succeeded`, `integration-configuration.removed` |
+
+Copy the generated Client ID, Client Secret, and the chosen integration URL slug
+into the Argon Guard Vercel project's Production environment variables:
+`VERCEL_CLIENT_ID`, `VERCEL_CLIENT_SECRET`, and `VERCEL_INTEGRATION_SLUG`.
+Redeploy after saving them. `AUTH_SECRET` is already configured and is used to
+encrypt installation tokens; do not replace it during this setup.
 Integration deliveries use the integration client secret for signature verification;
 leave `VERCEL_INTEGRATION_WEBHOOK_SECRET` unset unless your webhook uses a separate secret.
+The handler also accepts `deployment.ready` for integrations using deployment checks.
+
+Verify by choosing **Connect Vercel** in onboarding, authorizing a test project,
+selecting it, and running its first scan. Enable monitoring, deploy that project,
+and confirm a new scan appears. Registration requirements are documented in
+[Vercel's integration guide](https://vercel.com/docs/integrations/create-integration).
 
 The user starts installation from our app, authorizes in Vercel, selects a project,
 and runs the first scan of its latest ready production deployment. Later signed

@@ -21,7 +21,7 @@ const links: { href: string; label: string; icon: IconName }[] = [
   { href: '/', label: 'Overview', icon: 'home' },
   { href: '/#sites', label: 'Your sites', icon: 'globe' },
   { href: '/#activity', label: 'Scan history', icon: 'activity' },
-  { href: '/clusters', label: 'Clusters', icon: 'layers' },
+  { href: '/clusters', label: 'Content groups', icon: 'layers' },
   { href: '/demo', label: 'Try a scan', icon: 'scan' },
 ];
 export default function WorkspaceShell({ user, title = 'Overview', children }: { user: User; title?: string; children: ReactNode }) {
