@@ -19,7 +19,7 @@ export default function AgentAvatar({ state = 'idle', message = 'Ready to inspec
         })}
       </div>
       <div className="agent-avatar-copy">
-        <span className="agent-avatar-eyebrow">{variant === 'conversation' ? 'YOUR AGENT' : 'GEMINI · TRUST & SAFETY'}</span>
+        <span className="agent-avatar-eyebrow">Argon Guard</span>
         {variant === 'panel' && <h2>Your watchful companion.</h2>}
         <p role="status" aria-live="polite">{message}</p>
         {variant === 'panel' && <span className="agent-avatar-tag">Flash screening · Argon deep analysis</span>}

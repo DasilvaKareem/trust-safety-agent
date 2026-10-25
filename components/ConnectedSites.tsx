@@ -22,7 +22,7 @@ export default function ConnectedSites({ initialSites }: { initialSites: Site[] 
     if (r.ok) setSites(old => old.filter(s => s.id !== site.id)); else setError('Could not disconnect. Please try again.');
   }
   return <section aria-label="Connected sites"><div className="workspace-nav"><h2 style={{ fontSize: '1.3rem' }}>Your sites</h2><Link className="flow-primary" href="/onboarding?step=connect">Connect a site +</Link></div>
-    {sites.length === 0 && <div className="card"><p>No sites connected yet. Your agent is ready when you are.</p></div>}
+    {sites.length === 0 && <div className="card"><p>No sites connected yet. Argon Guard is ready when you are.</p></div>}
     <div className="site-grid">{sites.map(site => <article className="site-card" key={site.id}><div className="site-card-heading"><h3>{site.kind === 'vercel' ? '▲' : '◎'} {site.name}</h3><span className="verified-label">{site.monitoring ? site.kind === 'vercel' ? 'On deployment' : 'Daily checks' : site.verifiedAt ? 'Monitoring paused' : 'Unverified'}</span></div><a className="site-card-url" href={site.url} target="_blank" rel="noreferrer">{site.url} ↗</a><ScanStatus site={site} /><div className="flow-actions"><button className="flow-primary" disabled={Boolean(busy)} onClick={() => scan(site)}>{busy === site.id ? 'Scanning…' : 'Scan again'}</button><Link className="text-button" href={`/onboarding?site=${site.id}`}>{site.verifiedAt ? 'Manage monitoring' : 'Verify ownership'}</Link><button className="text-button" disabled={Boolean(busy)} onClick={() => disconnect(site)}>Disconnect</button></div></article>)}</div>
     {error && <p className="flow-error" role="alert">{error}</p>}
   </section>;

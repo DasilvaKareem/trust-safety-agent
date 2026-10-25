@@ -10,7 +10,7 @@ import type { User } from '@/lib/account/auth';
 import type { Site } from '@/lib/account/sites';
 
 type Props = { user: User | null; googleReady: boolean; vercelReady: boolean; schedulerReady: boolean; sites: Site[]; connections: { id: string; name: string }[] };
-const steps = ['Meet your agent', 'Your account', 'Connect a site', 'First scan', 'Stay protected'];
+const steps = ['Meet Argon Guard', 'Your account', 'Connect a site', 'First scan', 'Stay protected'];
 const errors: Record<string, string> = { auth_setup: 'Sign-in is not available yet. The app owner needs to finish Google sign-in setup.', sign_in: 'Sign-in was cancelled or expired. Please try again.', vercel_setup: 'The Vercel integration is not configured yet. You can add a website URL instead.', vercel_connect: 'Vercel could not be connected. Please try again and check that you selected the correct account.' };
 export default function Onboarding({ user, googleReady, vercelReady, schedulerReady, sites, connections }: Props) {
   const router = useRouter();
@@ -94,7 +94,7 @@ export default function Onboarding({ user, googleReady, vercelReady, schedulerRe
     return `Ownership confirmed. Enable monitoring and I’ll check ${site.name} ${site.kind === 'vercel' ? 'on new production deployments' : 'approximately once a day'}.`;
   }
   const guide = agentMessage();
-  return <><Head><title>Meet your agent · Argon Guard</title><meta name="description" content="Connect your site and meet your personal Argon Guard scanning agent." /></Head>
+  return <><Head><title>Meet Argon Guard</title><meta name="description" content="Connect your site and meet your personal Argon Guard scanning agent." /></Head>
     <main className="onboarding-shell welcome-shell">
       <header className="flow-header"><Link className="flow-brand" href="/onboarding"><span className="brand-mark">✦</span> Argon Guard</Link><div>{user ? <><Link href="/">My dashboard ↗</Link><form action="/api/auth/logout" method="post"><button className="text-button">Sign out</button></form></> : <button className="text-button" onClick={() => { setStep(1); setError(''); }}>Sign in</button>}</div></header>
       <div className="welcome-layout">
