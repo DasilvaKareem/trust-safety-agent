@@ -4,9 +4,15 @@
 
 import { GetServerSideProps } from 'next';
 import Link from 'next/link';
+import AgentAvatar from '@/components/AgentAvatar';
+import ConnectedSites from '@/components/ConnectedSites';
+import { getUser, type User } from '@/lib/account/auth';
+import { listSites, type Site } from '@/lib/account/sites';
 import { storage, Deployment } from '@/lib/storage';
 
 interface DashboardProps {
+  user: User;
+  sites: Site[];
   recentDeployments: Deployment[];
   reviewQueue: Deployment[];
   stats: {
@@ -18,9 +24,10 @@ interface DashboardProps {
   };
 }
 
-export default function Dashboard({ recentDeployments, reviewQueue, stats }: DashboardProps) {
+export default function Dashboard({ recentDeployments, reviewQueue, stats, user, sites }: DashboardProps) {
   return (
     <div className="container">
+      <nav className="workspace-nav"><Link className="flow-brand" href="/"><span className="brand-mark">✦</span> Trust & Safety</Link><div><span>{user.name}’s workspace</span><form method="post" action="/api/auth/logout"><button className="text-button">Sign out</button></form></div></nav>
       <header style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '0.5rem' }}>
           Trust & Safety Dashboard
@@ -31,10 +38,11 @@ export default function Dashboard({ recentDeployments, reviewQueue, stats }: Das
       </header>
 
       {/* Stats Overview */}
+      <AgentAvatar message={reviewQueue.length > 0 ? `${reviewQueue.length} deployment${reviewQueue.length === 1 ? '' : 's'} waiting for your review.` : 'Ready to inspect your next deployment.'} state={reviewQueue.length > 0 ? 'suspicious' : 'idle'} />
       <div className="grid grid-2" style={{ marginBottom: '2rem' }}>
         <div className="card metric">
           <div className="metric-value">{stats.total}</div>
-          <div className="metric-label">Total Scans</div>
+          <div className="metric-label">Recent Scans</div>
         </div>
         <div className="card metric">
           <div className="metric-value">{stats.clean}</div>
@@ -49,6 +57,8 @@ export default function Dashboard({ recentDeployments, reviewQueue, stats }: Das
           <div className="metric-label">Flagged</div>
         </div>
       </div>
+
+      <ConnectedSites initialSites={sites} />
 
       {/* Review Queue */}
       {reviewQueue.length > 0 && (
@@ -206,21 +216,27 @@ async function handleReview(deploymentId: string, decision: 'approved' | 'dismis
   }
 }
 
-export const getServerSideProps: GetServerSideProps<DashboardProps> = async () => {
-  const recentDeployments = await storage.getRecentDeployments(20);
-  const reviewQueue = await storage.getReviewQueue();
-  const allClusters = await storage.getAllClusters();
+export const getServerSideProps: GetServerSideProps<DashboardProps> = async ({ req, res }) => {
+  res.setHeader('Cache-Control', 'private, no-store');
+  const user = await getUser(req);
+  if (!user) return { redirect: { destination: '/onboarding', permanent: false } };
+  const recentDeployments = await storage.getOwnerDeployments(user.id);
+  const reviewQueue = recentDeployments.filter(d => d.status === 'review' && !d.reviewDecision);
+  const allClusters = new Set(recentDeployments.map(d => d.clusterId).filter(Boolean));
+  const sites = await listSites(user.id);
 
   const stats = {
     total: recentDeployments.length,
     clean: recentDeployments.filter(d => d.status === 'clean').length,
     review: reviewQueue.length,
     flagged: recentDeployments.filter(d => d.status === 'flagged').length,
-    clusters: allClusters.length,
+    clusters: allClusters.size,
   };
 
   return {
     props: {
+      user,
+      sites,
       recentDeployments,
       reviewQueue,
       stats,

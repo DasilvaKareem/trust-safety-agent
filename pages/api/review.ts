@@ -4,11 +4,15 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { storage } from '@/lib/storage';
+import { requireUser } from '@/lib/account/auth';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  const user = await requireUser(req, res);
+  if (!user) return;
 
   const { deploymentId, decision } = req.body;
 
@@ -18,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const deployment = await storage.getDeployment(deploymentId);
-    if (!deployment) {
+    if (!deployment || deployment.ownerId !== user.id) {
       return res.status(404).json({ error: 'Deployment not found' });
     }
 
@@ -29,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       deploymentId,
       newStatus,
       {
-        reviewedBy: 'admin', // TODO: Get from auth context
+        reviewedBy: user.id,
         reviewDecision: decision,
       }
     );

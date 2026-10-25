@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import AgentAvatar from '@/components/AgentAvatar';
 
 // Sample phishing pages for demo
 const SAMPLE_PAGES = [
@@ -80,10 +81,12 @@ export default function DemoPage() {
   const [customUrl, setCustomUrl] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [scanError, setScanError] = useState(false);
 
   const scanSample = async () => {
     setIsScanning(true);
     setResult(null);
+    setScanError(false);
 
     try {
       const sample = SAMPLE_PAGES[selectedSample];
@@ -97,8 +100,10 @@ export default function DemoPage() {
       });
 
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Scan failed');
       setResult(data);
     } catch (error) {
+      setScanError(true);
       console.error('Scan failed:', error);
       (globalThis as any).alert?.('Scan failed');
     } finally {
@@ -111,6 +116,7 @@ export default function DemoPage() {
 
     setIsScanning(true);
     setResult(null);
+    setScanError(false);
 
     try {
       const response = await fetch('/api/demo/scan', {
@@ -123,8 +129,10 @@ export default function DemoPage() {
       });
 
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Scan failed');
       setResult(data);
     } catch (error) {
+      setScanError(true);
       console.error('Scan failed:', error);
       (globalThis as any).alert?.('Scan failed');
     } finally {
@@ -143,6 +151,10 @@ export default function DemoPage() {
         </p>
       </header>
 
+      <AgentAvatar
+        state={isScanning ? 'thinking' : scanError ? 'confused' : result?.deployment?.status === 'clean' ? 'happy' : result?.deployment ? 'suspicious' : 'idle'}
+        message={isScanning ? 'Inspecting this page for phishing and abuse…' : scanError ? 'The scan could not finish. Please try again.' : result?.deployment?.status === 'clean' ? 'Scan complete. No threats detected by this scan.' : result?.deployment ? 'Scan complete. This page needs your attention.' : 'Choose a sample or enter a URL. I’m ready.'}
+      />
       <div className="grid grid-2" style={{ alignItems: 'start' }}>
         {/* Sample Pages */}
         <section className="card">
@@ -283,3 +295,10 @@ export default function DemoPage() {
     </div>
   );
 }
+
+export const getServerSideProps: import('next').GetServerSideProps = async ({ req, res }) => {
+  const { getUser } = await import('@/lib/account/auth');
+  res.setHeader('Cache-Control', 'private, no-store');
+  if (!await getUser(req)) return { redirect: { destination: '/onboarding', permanent: false } };
+  return { props: {} };
+};

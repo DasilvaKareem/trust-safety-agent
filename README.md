@@ -179,7 +179,7 @@ For local dev:
    - **Name**: Trust & Safety Agent
    - **Redirect URL**: `http://localhost:3000/api/integration/callback` (dev) / your production URL
    - **Webhook URL**: `http://localhost:3000/api/webhooks/vercel` (dev) / your production URL
-   - **Events**: `deployment.created`, `deployment.succeeded`
+   - **Events**: `deployment.created`, `deployment.ready`
 3. Copy Client ID and Client Secret to `.env.local`
 
 ### 4. Get Gemini API Key
@@ -351,3 +351,72 @@ Built for the CV Gemini 4 Argon Hackathon, showcasing Vercel Trust & Safety inte
 - **Gemini**: Google's multimodal AI
 - **SimHash**: Near-duplicate detection algorithm
 - **Vercel**: Hosting and deployment platform
+
+## Agent-led onboarding and private workspaces
+
+Open `/onboarding` to meet the avatar, explore a clearly labeled example finding,
+create an account with Google, and connect either a Vercel project or a public URL.
+The dashboard, demo scans, scan history, review actions, and site settings require
+sign-in. Records are scoped to the signed-in account; legacy records without an
+owner are not exposed in customer workspaces.
+
+### Configure account sign-in
+
+1. Set `NEXT_PUBLIC_APP_URL` to the exact app origin (for local work, `http://localhost:3000`).
+2. Create a Google OAuth **Web application** with redirect URI
+   `${NEXT_PUBLIC_APP_URL}/api/auth/callback`. Enable the consent screen and add test
+   users if the OAuth app is in testing mode. Only `openid email profile` is requested.
+3. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and a random `AUTH_SECRET` of at
+   least 32 characters (`openssl rand -hex 32`). This is separate from the Gemini API key.
+4. Set `KV_REST_API_URL` and `KV_REST_API_TOKEN`. Production account storage fails
+   closed without Redis. Development uses process-local memory and loses data on restart.
+5. Keep `AUTH_SECRET` stable: it encrypts Vercel tokens. A key change requires reconnecting integrations.
+
+Sessions are opaque, hashed in storage, expire after seven days, and use HttpOnly,
+SameSite=Lax cookies (Secure on HTTPS). Google authorization uses single-use,
+browser-bound state and PKCE. Sign-out revokes the server session. State-changing
+browser requests require the configured origin.
+
+### Connect Vercel
+
+Create a connectable-account integration, set its redirect URL to
+`/api/integration/callback`, and set the webhook URL to `/api/webhooks/vercel` in
+the Integration Console. Subscribe to `deployment.ready` and
+`integration-configuration.removed`. Grant read access to projects and deployments.
+Set `VERCEL_CLIENT_ID`, `VERCEL_CLIENT_SECRET`, and `VERCEL_INTEGRATION_SLUG`.
+Integration deliveries use the integration client secret for signature verification;
+leave `VERCEL_INTEGRATION_WEBHOOK_SECRET` unset unless your webhook uses a separate secret.
+
+The user starts installation from our app, authorizes in Vercel, selects a project,
+and runs the first scan of its latest ready production deployment. Later signed
+webhook deliveries are checked against the account's active selected projects and
+current Vercel API permissions. Uninstall events pause monitoring. “Disconnect” in
+our dashboard removes the selected site from monitoring; to revoke the integration
+credential itself, uninstall the integration in Vercel.
+
+### Add any website
+
+A signed-in user can scan one public page immediately. Recurring monitoring requires
+publishing the exact account-specific verification text at
+`https://their-domain/.well-known/trust-safety.txt` (downloadable in onboarding),
+then clicking **Check verification** and **Enable monitoring**. Serve the file
+without redirects and keep it in place. The scanner validates public IPv4 addresses,
+pins DNS at connection time, checks redirects, and caps page size and request time.
+IPv6-only sites and nonstandard ports are currently unsupported.
+
+Set `CRON_SECRET` and deploy `vercel.json` for scheduled checks. The hourly job takes
+up to five sites due for their daily scan, oldest first; this requires a hosting plan
+that supports hourly cron and the configured function duration. At larger volumes,
+move this batch into a queue. Ownership is rechecked each time; a missing verification
+file pauses monitoring. The separate eve daily review schedule only handles enabled,
+verified Vercel sites. Scan failures remain failures; when Gemini is unavailable,
+the UI explicitly identifies a rules-only result. Email notifications and email-link
+sign-in are not implemented in this version.
+
+### Validation
+
+`npm test -- --runInBand` covers session revocation, OAuth replay protection, account
+isolation, cross-origin requests, ownership gating, encrypted credentials, and unsafe
+URL rejection alongside the scanner tests. `npm run build` checks all pages and types.
+Live Google/Vercel authorization requires the provider settings above; a successful
+local build does not verify those external credentials or a deployed cron schedule.

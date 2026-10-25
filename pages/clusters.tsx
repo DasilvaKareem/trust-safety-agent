@@ -4,6 +4,7 @@
 
 import { GetServerSideProps } from 'next';
 import Link from 'next/link';
+import { getUser } from '@/lib/account/auth';
 import { storage, Cluster, Deployment } from '@/lib/storage';
 
 interface ClustersProps {
@@ -97,28 +98,20 @@ export default function ClustersPage({ clusters }: ClustersProps) {
   );
 }
 
-export const getServerSideProps: GetServerSideProps<ClustersProps> = async () => {
-  const allClusters = await storage.getAllClusters();
-  
-  // Fetch deployments for each cluster
-  const clustersWithDeployments = await Promise.all(
-    allClusters.map(async cluster => {
-      const deployments = await Promise.all(
-        cluster.deploymentIds.map(id => storage.getDeployment(id))
-      );
-      return {
-        ...cluster,
-        deployments: deployments.filter(Boolean) as Deployment[],
-      };
-    })
-  );
-
-  // Sort by last seen (most recent first)
-  clustersWithDeployments.sort((a, b) => b.lastSeen - a.lastSeen);
-
-  return {
-    props: {
-      clusters: clustersWithDeployments,
-    },
-  };
+export const getServerSideProps: GetServerSideProps<ClustersProps> = async ({ req, res }) => {
+  res.setHeader('Cache-Control', 'private, no-store');
+  const user = await getUser(req);
+  if (!user) return { redirect: { destination: '/onboarding', permanent: false } };
+  const records = await storage.getOwnerDeployments(user.id);
+  const grouped = new Map<string, Deployment[]>();
+  for (const record of records) {
+    if (!record.clusterId) continue;
+    grouped.set(record.clusterId, [...(grouped.get(record.clusterId) || []), record]);
+  }
+  const clusters = [...grouped].map(([id, deployments]) => ({
+    id, deployments, deploymentIds: deployments.map(d => d.id), count: deployments.length,
+    simHash: deployments[0].simHash || '', firstSeen: Math.min(...deployments.map(d => d.createdAt)), lastSeen: Math.max(...deployments.map(d => d.createdAt)),
+  }));
+  clusters.sort((a, b) => b.lastSeen - a.lastSeen);
+  return { props: { clusters } };
 };

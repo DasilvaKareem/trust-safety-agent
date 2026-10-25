@@ -1,5 +1,6 @@
 import { defineWorkflowTool } from "eve/tools";
 import { z } from "zod";
+import { getSite, runSiteScan } from "../../lib/account/sites";
 import {
   combineTiers,
   escalationReasonFor,
@@ -24,6 +25,7 @@ export default defineWorkflowTool({
     "Durably scan one Vercel deployment for phishing: fetch, rules, Gemini 3.8 Flash, escalate to Gemini 4 Argon when risky, then store the verdict.",
   inputSchema: z.object({
     deploymentId: z.string().min(1),
+    siteId: z.string().optional(),
     url: z.string().url(),
     projectId: z.string().optional(),
     teamId: z.string().optional(),
@@ -35,6 +37,7 @@ export default defineWorkflowTool({
   }),
   async execute(job) {
     "use workflow";
+    if (job.siteId) return await monitoredSiteStep(job.siteId);
     const html = await fetchStep(job.url);
     const rules = await rulesStep(html, job);
     if (!html) {
@@ -81,4 +84,12 @@ async function persistStep(
   const tiered = fast ? combineTiers(fast, deep, reason, latency) : undefined;
   const record = await persistScan(job, html, rules, tiered);
   return summarize(record, tiered);
+}
+
+async function monitoredSiteStep(id: string) {
+  "use step";
+  const site = await getSite(id);
+  if (!site || site.kind !== 'vercel' || !site.monitoring || !site.verifiedAt) throw new Error('Site is not enabled for deployment monitoring');
+  const scanned = await runSiteScan(site);
+  return { siteId: site.id, status: scanned.lastScan?.status };
 }

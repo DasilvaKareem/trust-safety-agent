@@ -141,6 +141,8 @@ export async function analyzeWithGemini(
 
     const result = await generateObject({
       model,
+      abortSignal: AbortSignal.timeout(35_000),
+      maxRetries: 0,
       schema: analysisSchema,
       messages: [{ role: 'user', content: parts }],
       providerOptions: {
@@ -261,23 +263,8 @@ export function effectiveScore(rulesScore: number, tiered?: TieredScanResult): n
  * Fetch HTML from a URL
  */
 export async function fetchPageHTML(url: string): Promise<string> {
-  try {
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'TrustSafetyBot/1.0 (Vercel Integration)'
-      },
-      signal: AbortSignal.timeout(10000) // 10s timeout
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    return await response.text();
-  } catch (error) {
-    console.error(`[Fetch] Failed to fetch ${url}:`, error);
-    throw error;
-  }
+  const { readPublicPage } = await import('../account/public-page');
+  return readPublicPage(url);
 }
 
 /**

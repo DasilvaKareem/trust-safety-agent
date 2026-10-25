@@ -1,13 +1,22 @@
 {
   "preset": "ts-jest/presets/default-esm",
   "testEnvironment": "node",
-  "extensionsToTreatAsEsm": [".ts"],
+  "extensionsToTreatAsEsm": [
+    ".ts"
+  ],
   "moduleNameMapper": {
     "^@/(.*)$": "<rootDir>/$1"
   },
   "transform": {
-    "^.+\\.tsx?$": ["ts-jest", {
-      "useESM": true
-    }]
-  }
+    "^.+\\.tsx?$": [
+      "ts-jest",
+      {
+        "useESM": true
+      }
+    ]
+  },
+  "modulePathIgnorePatterns": [
+    "<rootDir>/.eve/",
+    "<rootDir>/.next/"
+  ]
 }

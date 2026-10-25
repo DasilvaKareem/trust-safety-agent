@@ -52,16 +52,8 @@ export function jobFromWebhookPayload(payload: any): ScanJob {
 }
 
 export async function fetchDeploymentHtml(url: string): Promise<string> {
-  try {
-    const response = await fetch(url, {
-      headers: { 'User-Agent': 'TrustSafetyBot/1.0' },
-      signal: AbortSignal.timeout(10_000),
-    });
-    return (await response.text()).slice(0, MAX_HTML_BYTES);
-  } catch (error) {
-    console.warn('[Scan] Failed to fetch deployment HTML:', url, error);
-    return '';
-  }
+  const { readPublicPage } = await import('../account/public-page');
+  return (await readPublicPage(url)).slice(0, MAX_HTML_BYTES);
 }
 
 export function runRules(html: string, job: ScanJob): RulesResult {
@@ -112,7 +104,9 @@ export async function persistScan(
   const installation = (await storage.getAllInstallations()).find(
     inst => (job.teamId && inst.teamId === job.teamId) || (job.userId && inst.userId === job.userId)
   );
+  const previous = await storage.getDeployment(job.deploymentId);
   const record: Deployment = {
+    ...(previous?.ownerId ? { ownerId: previous.ownerId, siteId: previous.siteId } : installation?.ownerId ? { ownerId: installation.ownerId } : {}),
     id: job.deploymentId,
     installationId: installation?.id || 'unknown',
     projectId: job.projectId || 'unknown',

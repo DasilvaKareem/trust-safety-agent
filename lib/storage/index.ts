@@ -4,6 +4,8 @@
  */
 
 export interface Installation {
+  ownerId?: string;
+  revokedAt?: number;
   id: string;
   teamId: string;
   userId: string;
@@ -14,6 +16,8 @@ export interface Installation {
 }
 
 export interface Deployment {
+  ownerId?: string;
+  siteId?: string;
   id: string;
   installationId: string;
   projectId: string;
@@ -44,7 +48,7 @@ export interface Cluster {
 }
 
 let kvStore: typeof import('@vercel/kv').kv | null = null;
-const memoryStore: Record<string, any> = {};
+const memoryStore: Record<string, any> = (globalThis as any).__scanMemoryStore ??= {};
 
 async function initKV() {
   if (kvStore) return;
@@ -55,9 +59,10 @@ async function initKV() {
       kvStore = kv;
       console.log('[Storage] Using Upstash Redis');
     } else {
-      console.log('[Storage] No KV credentials found, using in-memory storage');
+      if (process.env.NODE_ENV === 'production') throw new Error('Persistent storage is required in production');
     }
   } catch (error) {
+    if (process.env.NODE_ENV === 'production') throw error;
     console.warn('[Storage] Failed to initialize KV, using in-memory storage:', error);
   }
 }
@@ -106,6 +111,7 @@ export const storage = {
     if (kvStore) {
       await kvStore.set(`deployment:${deployment.id}`, deployment);
       await kvStore.zadd('deployments', { score: deployment.createdAt, member: deployment.id });
+      if (deployment.ownerId) await kvStore.zadd(`owner-deployments:${deployment.ownerId}`, { score: deployment.createdAt, member: deployment.id });
       
       if (deployment.status === 'review') {
         await kvStore.sadd('review-queue', deployment.id);
@@ -113,7 +119,7 @@ export const storage = {
     } else {
       memoryStore[`deployment:${deployment.id}`] = deployment;
       if (!memoryStore['deployments']) memoryStore['deployments'] = [];
-      (memoryStore['deployments'] as Deployment[]).push(deployment);
+      memoryStore['deployments'] = (memoryStore['deployments'] as Deployment[]).filter(d => d.id !== deployment.id).concat(deployment);
       
       if (deployment.status === 'review') {
         if (!memoryStore['review-queue']) memoryStore['review-queue'] = new Set();
@@ -129,6 +135,16 @@ export const storage = {
     } else {
       return memoryStore[`deployment:${id}`] || null;
     }
+  },
+
+  async getOwnerDeployments(ownerId: string, limit = 100): Promise<Deployment[]> {
+    await initKV();
+    if (kvStore) {
+      const ids = await kvStore.zrange(`owner-deployments:${ownerId}`, 0, limit - 1, { rev: true });
+      const records = await Promise.all(ids.map(id => this.getDeployment(String(id))));
+      return records.filter((d): d is Deployment => Boolean(d && d.ownerId === ownerId));
+    }
+    return (memoryStore['deployments'] as Deployment[] || []).filter(d => d.ownerId === ownerId).sort((a, b) => b.createdAt - a.createdAt).slice(0, limit);
   },
 
   async getRecentDeployments(limit: number = 50): Promise<Deployment[]> {
