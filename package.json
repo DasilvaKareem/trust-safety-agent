@@ -1,0 +1,50 @@
+{
+  "name": "trust-safety-agent",
+  "version": "1.0.0",
+  "description": "Trust & Safety agent for Vercel projects: scans every deploy for phishing and abuse with rules plus Gemini, built with eve.",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DasilvaKareem/trust-safety-agent.git"
+  },
+  "keywords": [
+    "vercel",
+    "trust-safety",
+    "phishing-detection",
+    "gemini",
+    "eve"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/DasilvaKareem/trust-safety-agent/issues"
+  },
+  "homepage": "https://github.com/DasilvaKareem/trust-safety-agent#readme",
+  "dependencies": {
+    "@ai-sdk/google": "^4.0.105",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vercel/kv": "^3.0.0",
+    "ai": "^7.0.153",
+    "eve": "^0.83.2",
+    "next": "^16.4.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.4.3",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.4.15",
+    "typescript": "5.6"
+  }
+}
